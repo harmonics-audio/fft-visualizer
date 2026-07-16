@@ -9,6 +9,12 @@ export interface WebSocketFftOptions {
   startFreq?: number
   /** Highest frequency in Hz (default: 18000) */
   endFreq?: number
+  /**
+   * Fraction of window overlap between successive FFT frames, 0–0.75 (default: 0).
+   * With overlap 0.5 a new spectrum is produced every fftSize/2 samples,
+   * halving update latency and smoothing bar motion at the cost of ~2x FFT compute.
+   */
+  overlap?: number
 }
 
 export interface WebSocketFftReturn {
@@ -33,6 +39,8 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   const bins = options?.bins ?? 80
   const startFreq = options?.startFreq ?? 100
   const endFreq = options?.endFreq ?? 18000
+  const overlap = Math.min(0.75, Math.max(0, options?.overlap ?? 0))
+  const hopSize = Math.max(1, Math.round(fftSize * (1 - overlap)))
 
   const fftData = ref<Uint8Array>(new Uint8Array(bins))
   const fftDataLeft = ref<Uint8Array>(new Uint8Array(bins))
@@ -148,9 +156,11 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
       const frameMono = accumulationBuffer.slice(0, fftSize)
       const frameLeft = accumulationBufferLeft.slice(0, fftSize)
       const frameRight = accumulationBufferRight.slice(0, fftSize)
-      accumulationBuffer = accumulationBuffer.slice(fftSize)
-      accumulationBufferLeft = accumulationBufferLeft.slice(fftSize)
-      accumulationBufferRight = accumulationBufferRight.slice(fftSize)
+      // Advance by hopSize (= fftSize when overlap is 0) so successive
+      // windows overlap by fftSize - hopSize samples
+      accumulationBuffer = accumulationBuffer.slice(hopSize)
+      accumulationBufferLeft = accumulationBufferLeft.slice(hopSize)
+      accumulationBufferRight = accumulationBufferRight.slice(hopSize)
       fftData.value = processor.process(frameMono)
       fftDataLeft.value = processorLeft.process(frameLeft)
       fftDataRight.value = processorRight.process(frameRight)

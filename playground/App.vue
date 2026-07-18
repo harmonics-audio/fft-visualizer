@@ -11,6 +11,7 @@ const smoothing = ref(0.5)
 const peakDecay = ref(0.89)
 const gradient = ref<GradientName>('rainbow')
 const gradientDirection = ref<'vertical' | 'horizontal'>('horizontal')
+const colorMode = ref<'gradient' | 'bar-level'>('gradient')
 const stereo = ref(true)
 const lumiBars = ref(false)
 const radial = ref(false)
@@ -19,6 +20,11 @@ const barSpace = ref(0.25)
 const reflexRatio = ref(0)
 const reflexAlpha = ref(0.25)
 const glow = ref(0)
+const rotation = ref<0 | 90 | 180 | 270>(0)
+
+function rotate() {
+  rotation.value = ((rotation.value + 90) % 360) as 0 | 90 | 180 | 270
+}
 
 // Mode & WebSocket URL
 const mode = ref<'websocket' | 'local'>('local')
@@ -124,6 +130,7 @@ async function onDeviceChange() {
         :peak-decay="peakDecay"
         :gradient="gradient"
         :gradient-direction="gradientDirection"
+        :color-mode="colorMode"
         :stereo="stereo"
         :lumi-bars="lumiBars"
         :radial="radial"
@@ -132,6 +139,7 @@ async function onDeviceChange() {
         :reflex-ratio="reflexRatio"
         :reflex-alpha="reflexAlpha"
         :glow="glow"
+        :rotation="rotation"
       />
     </div>
     <button class="fullscreen-btn" @click="toggleFullscreen(fftContainer)">
@@ -197,6 +205,10 @@ async function onDeviceChange() {
       </div>
 
       <div class="control-group">
+        <button class="connect-btn" @click="rotate">Rotate ({{ rotation }}°)</button>
+      </div>
+
+      <div class="control-group">
         <label>Glow: {{ glow.toFixed(2) }}</label>
         <input type="range" v-model.number="glow" min="0" max="1" step="0.05" />
       </div>
@@ -240,6 +252,14 @@ async function onDeviceChange() {
         <select v-model="gradientDirection">
           <option value="vertical">Vertical</option>
           <option value="horizontal">Horizontal</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Color Mode</label>
+        <select v-model="colorMode">
+          <option value="gradient">Gradient</option>
+          <option value="bar-level">Bar Level</option>
         </select>
       </div>
     </div>

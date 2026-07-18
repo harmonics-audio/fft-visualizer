@@ -63,8 +63,10 @@ import { FFTVisualizer } from 'vue-fft-visualizer'
 | `reflexRatio` | `number` | `0` | Mirrored reflection (0 = off). Linear mono: height fraction (max 0.7). Radial: > 0 mirrors bars inward inside the inner circle |
 | `reflexAlpha` | `number` | `0.25` | Reflection brightness (0-1) |
 | `glow` | `number` | `0` | Glow above the bar tops (0 = off, 1 = max) |
+| `rotation` | `0 \| 90 \| 180 \| 270` | `0` | Rotate the whole visual clockwise, in degrees |
 | `gradient` | `GradientName \| GradientStop[]` | `'classic'` | Bar color gradient: a preset name or custom stops |
 | `gradientDirection` | `'vertical' \| 'horizontal'` | `'vertical'` | Gradient axis |
+| `colorMode` | `'gradient' \| 'bar-level'` | `'gradient'` | `'bar-level'` colors each whole bar by its current level instead of the gradient axis |
 
 ### Gradients
 

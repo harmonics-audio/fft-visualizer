@@ -54,10 +54,14 @@ const props = withDefaults(defineProps<{
   reflexAlpha?: number
   /** Glow above the bar tops (0 = off, 1 = max) */
   glow?: number
+  /** Rotate the whole visual clockwise, in degrees */
+  rotation?: 0 | 90 | 180 | 270
   /** Bar color gradient: preset name (see gradientPresets) or custom stops */
   gradient?: GradientInput
   /** Gradient direction */
   gradientDirection?: 'vertical' | 'horizontal'
+  /** 'gradient' paints along the gradient axis; 'bar-level' colors each whole bar by its current level */
+  colorMode?: 'gradient' | 'bar-level'
   /** Noise floor threshold (0-255) */
   noiseFloor?: number
   /** Temporal smoothing factor (0 = none, 0.9 = heavy) */
@@ -77,8 +81,10 @@ const props = withDefaults(defineProps<{
   reflexRatio: 0,
   reflexAlpha: 0.25,
   glow: 0,
+  rotation: 0,
   gradient: 'classic',
   gradientDirection: 'vertical',
+  colorMode: 'gradient',
   noiseFloor: 0,
   smoothing: 0,
   stereo: false
@@ -189,8 +195,10 @@ let uBarSpaceLoc: WebGLUniformLocation | null = null
 let uReflexRatioLoc: WebGLUniformLocation | null = null
 let uReflexAlphaLoc: WebGLUniformLocation | null = null
 let uGlowLoc: WebGLUniformLocation | null = null
+let uRotationLoc: WebGLUniformLocation | null = null
 let uGradientTexLoc: WebGLUniformLocation | null = null
 let uGradientHorizontalLoc: WebGLUniformLocation | null = null
+let uBarLevelColorLoc: WebGLUniformLocation | null = null
 let uStereoLoc: WebGLUniformLocation | null = null
 let uFftDataLoc: WebGLUniformLocation | null = null
 let uPeakDataLoc: WebGLUniformLocation | null = null
@@ -213,6 +221,7 @@ const fragmentShaderSource = `
   uniform bool u_ledBars;
   uniform bool u_lumiBars;
   uniform bool u_gradientHorizontal;
+  uniform bool u_barLevelColor;
   uniform bool u_stereo;
   uniform bool u_radial;
   uniform float u_radialInner;
@@ -220,6 +229,7 @@ const fragmentShaderSource = `
   uniform float u_reflexRatio;
   uniform float u_reflexAlpha;
   uniform float u_glow;
+  uniform float u_rotation; // clockwise quarter turns (0-3)
   uniform sampler2D u_fftData;
   uniform sampler2D u_peakData;
   uniform sampler2D u_fftDataRight;
@@ -252,17 +262,17 @@ const fragmentShaderSource = `
     if (u_lumiBars) {
       // Full-height bars whose brightness follows the level
       if (inLedGap) return bgColor;
-      float gradientPos = u_gradientHorizontal ? x : y;
+      float gradientPos = u_barLevelColor ? fftValue : (u_gradientHorizontal ? x : y);
       vec3 color = getGradientColor(gradientPos);
       return vec4(mix(bgColor.rgb, color, fftValue), 1.0);
     }
 
     if (y <= fftValue) {
       if (inLedGap) return bgColor;
-      float gradientPos = u_gradientHorizontal ? x : y;
+      float gradientPos = u_barLevelColor ? fftValue : (u_gradientHorizontal ? x : y);
       return vec4(getGradientColor(gradientPos), 1.0);
     } else if (u_showPeaks && y >= peakValue - peakHalf && y <= peakValue + peakHalf) {
-      float peakGradientPos = u_gradientHorizontal ? x : peakValue;
+      float peakGradientPos = (u_barLevelColor || !u_gradientHorizontal) ? peakValue : x;
       vec3 peakColor = getGradientColor(peakGradientPos);
       if (u_ledBars) {
         float peakSegment = floor(peakValue * ledSegments) / ledSegments;
@@ -278,7 +288,7 @@ const fragmentShaderSource = `
       // Soft light rising from the bar top, in the bar-top's color. Faded out
       // for near-silent bars so idle columns stay dark.
       float g = u_glow * exp((fftValue - y) * 10.0) * smoothstep(0.0, 0.05, fftValue);
-      vec3 glowColor = getGradientColor(u_gradientHorizontal ? x : fftValue);
+      vec3 glowColor = getGradientColor((u_barLevelColor || !u_gradientHorizontal) ? fftValue : x);
       return vec4(mix(bgColor.rgb, glowColor, clamp(g, 0.0, 1.0)), 1.0);
     }
     return bgColor;
@@ -314,6 +324,8 @@ const fragmentShaderSource = `
       }
 
       float angle = atan(p.x, p.y); // 0 at 12 o'clock, +/-pi at 6 o'clock
+      // Rotation: offset the angle (rotating uv would break the aspect fix)
+      angle = mod(angle - u_rotation * 1.5707963 + 3.14159265, 6.28318531) - 3.14159265;
       vec4 c;
       if (u_stereo) {
         // Left channel sweeps the right half, right channel mirrors on the left
@@ -329,6 +341,16 @@ const fragmentShaderSource = `
       }
       gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, radialDim), c.a);
       return;
+    }
+
+    // Rotation (clockwise): sample the un-rotated content for this pixel.
+    // Content is stretched to the canvas, so 90/270 also swap the axes' span.
+    if (u_rotation > 2.5) {
+      uv = vec2(uv.y, 1.0 - uv.x);
+    } else if (u_rotation > 1.5) {
+      uv = vec2(1.0 - uv.x, 1.0 - uv.y);
+    } else if (u_rotation > 0.5) {
+      uv = vec2(1.0 - uv.y, uv.x);
     }
 
     if (u_stereo) {
@@ -456,8 +478,10 @@ function initWebGL(): boolean {
   uReflexRatioLoc = gl.getUniformLocation(program, 'u_reflexRatio')
   uReflexAlphaLoc = gl.getUniformLocation(program, 'u_reflexAlpha')
   uGlowLoc = gl.getUniformLocation(program, 'u_glow')
+  uRotationLoc = gl.getUniformLocation(program, 'u_rotation')
   uGradientTexLoc = gl.getUniformLocation(program, 'u_gradientTex')
   uGradientHorizontalLoc = gl.getUniformLocation(program, 'u_gradientHorizontal')
+  uBarLevelColorLoc = gl.getUniformLocation(program, 'u_barLevelColor')
   uStereoLoc = gl.getUniformLocation(program, 'u_stereo')
   uFftDataLoc = gl.getUniformLocation(program, 'u_fftData')
   uPeakDataLoc = gl.getUniformLocation(program, 'u_peakData')
@@ -785,7 +809,9 @@ function drawSpectrum() {
   gl.uniform1f(uReflexRatioLoc, Math.min(0.7, Math.max(0, currentReflexRatio.value)))
   gl.uniform1f(uReflexAlphaLoc, Math.min(1, Math.max(0, currentReflexAlpha.value)))
   gl.uniform1f(uGlowLoc, Math.min(1, Math.max(0, currentGlow.value)))
+  gl.uniform1f(uRotationLoc, (Math.round(currentRotation.value / 90) % 4 + 4) % 4)
   gl.uniform1i(uGradientHorizontalLoc, currentGradientDirection.value === 'horizontal' ? 1 : 0)
+  gl.uniform1i(uBarLevelColorLoc, currentColorMode.value === 'bar-level' ? 1 : 0)
   gl.uniform1i(uStereoLoc, isStereo ? 1 : 0)
 
   // Draw
@@ -823,7 +849,9 @@ const {
   reflexRatio: currentReflexRatio,
   reflexAlpha: currentReflexAlpha,
   glow: currentGlow,
+  rotation: currentRotation,
   gradientDirection: currentGradientDirection,
+  colorMode: currentColorMode,
   noiseFloor: currentNoiseFloor,
   smoothing: currentSmoothing,
   stereo: currentStereo

@@ -56,6 +56,38 @@ import { FFTVisualizer } from 'vue-fft-visualizer'
 | `showPeaks` | `boolean` | `true` | Show falling peak indicators |
 | `peakDecay` | `number` | `0.997` | Peak decay rate (0.99 = slow, 0.9 = fast) |
 | `ledBars` | `boolean` | `false` | Enable LED segment effect |
+| `lumiBars` | `boolean` | `false` | Full-height bars whose brightness follows the level |
+| `radial` | `boolean` | `false` | Circular spectrum: angle = frequency, radius = level |
+| `radialInnerRadius` | `number` | `0.35` | Radial mode: inner hole radius as fraction of outer radius (0-0.9) |
+| `barSpace` | `number` | `0.25` | Gap between bars as fraction of bar width (0-0.9) |
+| `reflexRatio` | `number` | `0` | Mirrored reflection height fraction (0 = off, max 0.7; mono, non-radial) |
+| `reflexAlpha` | `number` | `0.25` | Reflection brightness (0-1) |
+| `gradient` | `GradientName \| GradientStop[]` | `'classic'` | Bar color gradient: a preset name or custom stops |
+| `gradientDirection` | `'vertical' \| 'horizontal'` | `'vertical'` | Gradient axis |
+
+### Gradients
+
+Bar colors are sampled from a 256×1 lookup texture, so any CSS-color gradient
+works. Pass a preset name or an array of custom stops:
+
+```vue
+<!-- Preset -->
+<FFTVisualizer websocket-url="ws://..." gradient="aurora" />
+
+<!-- Custom stops (any CSS color format) -->
+<FFTVisualizer
+  websocket-url="ws://..."
+  :gradient="[
+    { stop: 0, color: '#001233' },
+    { stop: 0.5, color: 'rgb(15, 155, 142)' },
+    { stop: 1, color: 'hsl(280, 95%, 75%)' }
+  ]"
+/>
+```
+
+Built-in presets (exported as `gradientPresets` / `gradientNames`):
+`classic`, `rainbow`, `blue`, `prism`, `orangered`, `steelblue`, `sunset`,
+`aurora`, `dusk`, `mono`.
 
 ## Events
 

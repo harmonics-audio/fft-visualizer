@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, toRefs } from 'vue'
 import { useLocalAudio } from '../composables/useLocalAudio'
+import { resolveGradientStops, buildGradientLUT, GRADIENT_LUT_SIZE, type GradientInput } from '../gradients'
 
 /**
  * FFT Visualizer - High-performance WebGL spectrum analyzer
@@ -39,8 +40,20 @@ const props = withDefaults(defineProps<{
   bands?: 10 | 20 | 40 | 80
   /** Enable LED segment effect */
   ledBars?: boolean
-  /** Bar color gradient */
-  gradient?: 'classic' | 'rainbow' | 'blue' | Array<{stop: number, color: string}>
+  /** Full-height bars whose brightness follows the level */
+  lumiBars?: boolean
+  /** Render the spectrum as a circle (angle = frequency, radius = level) */
+  radial?: boolean
+  /** Radial mode: inner hole radius as a fraction of the outer radius (0-0.9) */
+  radialInnerRadius?: number
+  /** Gap between bars as a fraction of bar width (0 = none, max 0.9) */
+  barSpace?: number
+  /** Mirrored reflection: fraction of canvas height it occupies (0 = off, max 0.7). Mono, non-radial only */
+  reflexRatio?: number
+  /** Brightness of the reflection (0-1) */
+  reflexAlpha?: number
+  /** Bar color gradient: preset name (see gradientPresets) or custom stops */
+  gradient?: GradientInput
   /** Gradient direction */
   gradientDirection?: 'vertical' | 'horizontal'
   /** Noise floor threshold (0-255) */
@@ -55,6 +68,12 @@ const props = withDefaults(defineProps<{
   peakDecay: 0.997,
   bands: 80,
   ledBars: false,
+  lumiBars: false,
+  radial: false,
+  radialInnerRadius: 0.35,
+  barSpace: 0.25,
+  reflexRatio: 0,
+  reflexAlpha: 0.25,
   gradient: 'classic',
   gradientDirection: 'vertical',
   noiseFloor: 0,
@@ -153,13 +172,20 @@ let fftTexture: WebGLTexture | null = null
 let peakTexture: WebGLTexture | null = null
 let fftTextureRight: WebGLTexture | null = null
 let peakTextureRight: WebGLTexture | null = null
+let gradientTexture: WebGLTexture | null = null
 
 // Shader locations
 let uResolutionLoc: WebGLUniformLocation | null = null
 let uBinsLoc: WebGLUniformLocation | null = null
 let uShowPeaksLoc: WebGLUniformLocation | null = null
 let uLedBarsLoc: WebGLUniformLocation | null = null
-let uGradientLoc: WebGLUniformLocation | null = null
+let uLumiBarsLoc: WebGLUniformLocation | null = null
+let uRadialLoc: WebGLUniformLocation | null = null
+let uRadialInnerLoc: WebGLUniformLocation | null = null
+let uBarSpaceLoc: WebGLUniformLocation | null = null
+let uReflexRatioLoc: WebGLUniformLocation | null = null
+let uReflexAlphaLoc: WebGLUniformLocation | null = null
+let uGradientTexLoc: WebGLUniformLocation | null = null
 let uGradientHorizontalLoc: WebGLUniformLocation | null = null
 let uStereoLoc: WebGLUniformLocation | null = null
 let uFftDataLoc: WebGLUniformLocation | null = null
@@ -181,86 +207,102 @@ const fragmentShaderSource = `
   uniform float u_bins;
   uniform bool u_showPeaks;
   uniform bool u_ledBars;
-  uniform int u_gradient;
+  uniform bool u_lumiBars;
   uniform bool u_gradientHorizontal;
   uniform bool u_stereo;
+  uniform bool u_radial;
+  uniform float u_radialInner;
+  uniform float u_barSpace;
+  uniform float u_reflexRatio;
+  uniform float u_reflexAlpha;
   uniform sampler2D u_fftData;
   uniform sampler2D u_peakData;
   uniform sampler2D u_fftDataRight;
   uniform sampler2D u_peakDataRight;
+  uniform sampler2D u_gradientTex;
 
   vec3 getGradientColor(float t) {
-    if (u_gradient == 1) {
-      // Soft rainbow (prism style)
-      float s = t * 11.0;
-      vec3 c0, c1;
-      float f;
+    return texture2D(u_gradientTex, vec2(clamp(t, 0.0, 1.0), 0.5)).rgb;
+  }
 
-      if (s < 1.0) {
-        c0 = vec3(0.533, 0.067, 0.467); c1 = vec3(0.667, 0.2, 0.333); f = s;
-      } else if (s < 2.0) {
-        c0 = vec3(0.667, 0.2, 0.333); c1 = vec3(0.8, 0.4, 0.4); f = s - 1.0;
-      } else if (s < 3.0) {
-        c0 = vec3(0.8, 0.4, 0.4); c1 = vec3(0.933, 0.6, 0.267); f = s - 2.0;
-      } else if (s < 4.0) {
-        c0 = vec3(0.933, 0.6, 0.267); c1 = vec3(0.933, 0.867, 0.0); f = s - 3.0;
-      } else if (s < 5.0) {
-        c0 = vec3(0.933, 0.867, 0.0); c1 = vec3(0.6, 0.867, 0.333); f = s - 4.0;
-      } else if (s < 6.0) {
-        c0 = vec3(0.6, 0.867, 0.333); c1 = vec3(0.267, 0.867, 0.533); f = s - 5.0;
-      } else if (s < 7.0) {
-        c0 = vec3(0.267, 0.867, 0.533); c1 = vec3(0.133, 0.8, 0.733); f = s - 6.0;
-      } else if (s < 8.0) {
-        c0 = vec3(0.133, 0.8, 0.733); c1 = vec3(0.0, 0.733, 0.8); f = s - 7.0;
-      } else if (s < 9.0) {
-        c0 = vec3(0.0, 0.733, 0.8); c1 = vec3(0.0, 0.6, 0.8); f = s - 8.0;
-      } else if (s < 10.0) {
-        c0 = vec3(0.0, 0.6, 0.8); c1 = vec3(0.2, 0.4, 0.733); f = s - 9.0;
-      } else {
-        c0 = vec3(0.2, 0.4, 0.733); c1 = vec3(0.4, 0.2, 0.6); f = s - 10.0;
-      }
-      return mix(c0, c1, f);
-    } else if (u_gradient == 2) {
-      // Blue: dark blue -> cyan -> white
-      vec3 darkBlue = vec3(0.0, 0.1, 0.4);
-      vec3 cyan = vec3(0.0, 0.8, 1.0);
-      vec3 white = vec3(1.0, 1.0, 1.0);
-      if (t < 0.6) {
-        return mix(darkBlue, cyan, t / 0.6);
-      } else {
-        return mix(cyan, white, (t - 0.6) / 0.4);
-      }
-    } else {
-      // Classic: red -> orange -> yellow
-      vec3 red = vec3(0.76, 0.08, 0.0);
-      vec3 orange = vec3(1.0, 0.55, 0.0);
-      vec3 yellow = vec3(1.0, 0.77, 0.0);
-      if (t < 0.6) {
-        return mix(red, orange, t / 0.6);
-      } else {
-        return mix(orange, yellow, (t - 0.6) / 0.4);
-      }
+  // Render one channel in "column space": x = band axis (0-1), y = level axis (0-1).
+  // Works for linear bars and (via polar transform in main) radial mode.
+  vec4 renderBars(float x, float y, sampler2D fftTex, sampler2D peakTex, float peakHalf) {
+    vec4 bgColor = vec4(0.04, 0.04, 0.04, 1.0);
+
+    float barLocalX = fract(x * u_bins);
+    if (barLocalX > (1.0 - u_barSpace)) {
+      return bgColor;
     }
+
+    float texCoord = (floor(x * u_bins) + 0.5) / u_bins;
+    float fftValue = texture2D(fftTex, vec2(texCoord, 0.5)).r;
+    float peakValue = texture2D(peakTex, vec2(texCoord, 0.5)).r;
+
+    float ledSegments = 64.0;
+    float ledGap = 0.25;
+    float segmentY = fract(y * ledSegments);
+    bool inLedGap = u_ledBars && segmentY > (1.0 - ledGap);
+
+    if (u_lumiBars) {
+      // Full-height bars whose brightness follows the level
+      if (inLedGap) return bgColor;
+      float gradientPos = u_gradientHorizontal ? x : y;
+      vec3 color = getGradientColor(gradientPos);
+      return vec4(mix(bgColor.rgb, color, fftValue), 1.0);
+    }
+
+    if (y <= fftValue) {
+      if (inLedGap) return bgColor;
+      float gradientPos = u_gradientHorizontal ? x : y;
+      return vec4(getGradientColor(gradientPos), 1.0);
+    } else if (u_showPeaks && y >= peakValue - peakHalf && y <= peakValue + peakHalf) {
+      float peakGradientPos = u_gradientHorizontal ? x : peakValue;
+      vec3 peakColor = getGradientColor(peakGradientPos);
+      if (u_ledBars) {
+        float peakSegment = floor(peakValue * ledSegments) / ledSegments;
+        if (y >= peakSegment && y <= peakSegment + (1.0 / ledSegments) * (1.0 - ledGap)) {
+          return vec4(peakColor, 0.5);
+        }
+        return bgColor;
+      }
+      return vec4(peakColor, 0.5);
+    }
+    return bgColor;
   }
 
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
     vec4 bgColor = vec4(0.04, 0.04, 0.04, 1.0);
 
-    // Calculate which bar we're in
-    float barIndex = floor(uv.x * u_bins);
-    float barLocalX = fract(uv.x * u_bins);
+    if (u_radial) {
+      // Polar transform: angle -> band axis, radius -> level axis
+      vec2 p = uv - 0.5;
+      p.x *= u_resolution.x / u_resolution.y;
+      float outerR = 0.5;
+      float innerR = u_radialInner * outerR;
+      float r = length(p);
+      if (r < innerR || r > outerR) {
+        gl_FragColor = bgColor;
+        return;
+      }
+      float level = (r - innerR) / (outerR - innerR);
+      float angle = atan(p.x, p.y); // 0 at 12 o'clock, +/-pi at 6 o'clock
 
-    // Gap between bars (25% of bar width)
-    float gap = 0.25;
-    bool inGap = barLocalX > (1.0 - gap);
-    if (inGap) {
-      gl_FragColor = bgColor;
+      if (u_stereo) {
+        // Left channel sweeps the right half, right channel mirrors on the left
+        float x = abs(angle) / 3.14159265;
+        if (angle >= 0.0) {
+          gl_FragColor = renderBars(x, level, u_fftData, u_peakData, 0.006);
+        } else {
+          gl_FragColor = renderBars(x, level, u_fftDataRight, u_peakDataRight, 0.006);
+        }
+      } else {
+        float x = angle / 6.28318531 + 0.5;
+        gl_FragColor = renderBars(x, level, u_fftData, u_peakData, 0.006);
+      }
       return;
     }
-
-    // Sample FFT value for this bar
-    float texCoord = (barIndex + 0.5) / u_bins;
 
     if (u_stereo) {
       // Thin black divider line between left and right channels
@@ -269,115 +311,28 @@ const fragmentShaderSource = `
         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
       }
-
-      // Stereo mode: left channel grows up from center, right channel grows down from center
-      float fftLeft = texture2D(u_fftData, vec2(texCoord, 0.5)).r;
-      float peakLeft = texture2D(u_peakData, vec2(texCoord, 0.5)).r;
-      float fftRight = texture2D(u_fftDataRight, vec2(texCoord, 0.5)).r;
-      float peakRight = texture2D(u_peakDataRight, vec2(texCoord, 0.5)).r;
-
-      // LED effect
-      float ledSegments = 64.0;
-      float ledGap = 0.25;
-
+      // Left channel grows up from center, right channel grows down from center
       if (uv.y >= 0.5) {
-        // Top half: left channel (bars grow upward from center)
-        float localY = (uv.y - 0.5) * 2.0; // 0 at center, 1 at top
-
-        float segmentY = fract(localY * ledSegments);
-        bool inLedGap = u_ledBars && segmentY > (1.0 - ledGap);
-
-        if (localY <= fftLeft) {
-          if (inLedGap) {
-            gl_FragColor = bgColor;
-          } else {
-            float gradientPos = u_gradientHorizontal ? uv.x : localY;
-            vec3 color = getGradientColor(gradientPos);
-            gl_FragColor = vec4(color, 1.0);
-          }
-        } else if (u_showPeaks && localY >= peakLeft - 0.006 && localY <= peakLeft + 0.006) {
-          float peakGradientPos = u_gradientHorizontal ? uv.x : peakLeft;
-          vec3 peakColor = getGradientColor(peakGradientPos);
-          if (u_ledBars) {
-            float peakSegment = floor(peakLeft * ledSegments) / ledSegments;
-            if (localY >= peakSegment && localY <= peakSegment + (1.0 / ledSegments) * (1.0 - ledGap)) {
-              gl_FragColor = vec4(peakColor, 0.5);
-            } else {
-              gl_FragColor = bgColor;
-            }
-          } else {
-            gl_FragColor = vec4(peakColor, 0.5);
-          }
-        } else {
-          gl_FragColor = bgColor;
-        }
+        gl_FragColor = renderBars(uv.x, (uv.y - 0.5) * 2.0, u_fftData, u_peakData, 0.006);
       } else {
-        // Bottom half: right channel (bars grow downward from center)
-        float localY = (0.5 - uv.y) * 2.0; // 0 at center, 1 at bottom
-
-        float segmentY = fract(localY * ledSegments);
-        bool inLedGap = u_ledBars && segmentY > (1.0 - ledGap);
-
-        if (localY <= fftRight) {
-          if (inLedGap) {
-            gl_FragColor = bgColor;
-          } else {
-            float gradientPos = u_gradientHorizontal ? uv.x : localY;
-            vec3 color = getGradientColor(gradientPos);
-            gl_FragColor = vec4(color, 1.0);
-          }
-        } else if (u_showPeaks && localY >= peakRight - 0.006 && localY <= peakRight + 0.006) {
-          float peakGradientPos = u_gradientHorizontal ? uv.x : peakRight;
-          vec3 peakColor = getGradientColor(peakGradientPos);
-          if (u_ledBars) {
-            float peakSegment = floor(peakRight * ledSegments) / ledSegments;
-            if (localY >= peakSegment && localY <= peakSegment + (1.0 / ledSegments) * (1.0 - ledGap)) {
-              gl_FragColor = vec4(peakColor, 0.5);
-            } else {
-              gl_FragColor = bgColor;
-            }
-          } else {
-            gl_FragColor = vec4(peakColor, 0.5);
-          }
-        } else {
-          gl_FragColor = bgColor;
-        }
+        gl_FragColor = renderBars(uv.x, (0.5 - uv.y) * 2.0, u_fftDataRight, u_peakDataRight, 0.006);
       }
-    } else {
-      // Mono mode (original behavior)
-      float fftValue = texture2D(u_fftData, vec2(texCoord, 0.5)).r;
-      float peakValue = texture2D(u_peakData, vec2(texCoord, 0.5)).r;
+      return;
+    }
 
-      float ledSegments = 64.0;
-      float ledGap = 0.25;
-      float segmentY = fract(uv.y * ledSegments);
-      bool inLedGap = u_ledBars && segmentY > (1.0 - ledGap);
-
-      if (uv.y <= fftValue) {
-        if (inLedGap) {
-          gl_FragColor = bgColor;
-        } else {
-          float gradientPos = u_gradientHorizontal ? uv.x : uv.y;
-          vec3 color = getGradientColor(gradientPos);
-          gl_FragColor = vec4(color, 1.0);
-        }
-      } else if (u_showPeaks && uv.y >= peakValue - 0.003 && uv.y <= peakValue + 0.003) {
-        float peakGradientPos = u_gradientHorizontal ? uv.x : peakValue;
-        vec3 peakColor = getGradientColor(peakGradientPos);
-        if (u_ledBars) {
-          float peakSegment = floor(peakValue * ledSegments) / ledSegments;
-          if (uv.y >= peakSegment && uv.y <= peakSegment + (1.0 / ledSegments) * (1.0 - ledGap)) {
-            gl_FragColor = vec4(peakColor, 0.5);
-          } else {
-            gl_FragColor = bgColor;
-          }
-        } else {
-          gl_FragColor = vec4(peakColor, 0.5);
-        }
+    // Mono, with optional mirrored reflection in the bottom u_reflexRatio of the canvas
+    float y = uv.y;
+    float dim = 1.0;
+    if (u_reflexRatio > 0.0) {
+      if (uv.y < u_reflexRatio) {
+        y = (u_reflexRatio - uv.y) / (1.0 - u_reflexRatio);
+        dim = u_reflexAlpha;
       } else {
-        gl_FragColor = bgColor;
+        y = (uv.y - u_reflexRatio) / (1.0 - u_reflexRatio);
       }
     }
+    vec4 c = renderBars(uv.x, y, u_fftData, u_peakData, 0.003);
+    gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, dim), c.a);
   }
 `
 
@@ -466,7 +421,13 @@ function initWebGL(): boolean {
   uBinsLoc = gl.getUniformLocation(program, 'u_bins')
   uShowPeaksLoc = gl.getUniformLocation(program, 'u_showPeaks')
   uLedBarsLoc = gl.getUniformLocation(program, 'u_ledBars')
-  uGradientLoc = gl.getUniformLocation(program, 'u_gradient')
+  uLumiBarsLoc = gl.getUniformLocation(program, 'u_lumiBars')
+  uRadialLoc = gl.getUniformLocation(program, 'u_radial')
+  uRadialInnerLoc = gl.getUniformLocation(program, 'u_radialInner')
+  uBarSpaceLoc = gl.getUniformLocation(program, 'u_barSpace')
+  uReflexRatioLoc = gl.getUniformLocation(program, 'u_reflexRatio')
+  uReflexAlphaLoc = gl.getUniformLocation(program, 'u_reflexAlpha')
+  uGradientTexLoc = gl.getUniformLocation(program, 'u_gradientTex')
   uGradientHorizontalLoc = gl.getUniformLocation(program, 'u_gradientHorizontal')
   uStereoLoc = gl.getUniformLocation(program, 'u_stereo')
   uFftDataLoc = gl.getUniformLocation(program, 'u_fftData')
@@ -483,14 +444,33 @@ function initWebGL(): boolean {
   fftTextureRight = createTexture(gl)
   gl.activeTexture(gl.TEXTURE3)
   peakTextureRight = createTexture(gl, true)
+  gl.activeTexture(gl.TEXTURE4)
+  gradientTexture = createTexture(gl)
 
   // Set texture units
   gl.uniform1i(uFftDataLoc, 0)
   gl.uniform1i(uPeakDataLoc, 1)
   gl.uniform1i(uFftDataRightLoc, 2)
   gl.uniform1i(uPeakDataRightLoc, 3)
+  gl.uniform1i(uGradientTexLoc, 4)
+
+  uploadGradientTexture()
 
   return true
+}
+
+// Rasterize the current gradient (preset or custom stops) into the LUT texture
+function uploadGradientTexture() {
+  if (!gl || !gradientTexture) return
+  const lut = buildGradientLUT(resolveGradientStops(props.gradient))
+  gl.activeTexture(gl.TEXTURE4)
+  gl.bindTexture(gl.TEXTURE_2D, gradientTexture)
+  gl.texImage2D(
+    gl.TEXTURE_2D, 0, gl.RGBA,
+    GRADIENT_LUT_SIZE, 1, 0,
+    gl.RGBA, gl.UNSIGNED_BYTE,
+    lut
+  )
 }
 
 // Process raw FFT data: apply noise floor, smoothing, peaks, and aggregate
@@ -769,8 +749,12 @@ function drawSpectrum() {
   gl.uniform1f(uBinsLoc, numBins)
   gl.uniform1i(uShowPeaksLoc, currentShowPeaks.value ? 1 : 0)
   gl.uniform1i(uLedBarsLoc, currentLedBars.value ? 1 : 0)
-  const gradientIndex = currentGradient.value === 'rainbow' ? 1 : currentGradient.value === 'blue' ? 2 : 0
-  gl.uniform1i(uGradientLoc, gradientIndex)
+  gl.uniform1i(uLumiBarsLoc, currentLumiBars.value ? 1 : 0)
+  gl.uniform1i(uRadialLoc, currentRadial.value ? 1 : 0)
+  gl.uniform1f(uRadialInnerLoc, Math.min(0.9, Math.max(0, currentRadialInnerRadius.value)))
+  gl.uniform1f(uBarSpaceLoc, Math.min(0.9, Math.max(0, currentBarSpace.value)))
+  gl.uniform1f(uReflexRatioLoc, Math.min(0.7, Math.max(0, currentReflexRatio.value)))
+  gl.uniform1f(uReflexAlphaLoc, Math.min(1, Math.max(0, currentReflexAlpha.value)))
   gl.uniform1i(uGradientHorizontalLoc, currentGradientDirection.value === 'horizontal' ? 1 : 0)
   gl.uniform1i(uStereoLoc, isStereo ? 1 : 0)
 
@@ -802,12 +786,21 @@ const {
   showPeaks: currentShowPeaks,
   peakDecay: currentPeakDecay,
   ledBars: currentLedBars,
-  gradient: currentGradient,
+  lumiBars: currentLumiBars,
+  radial: currentRadial,
+  radialInnerRadius: currentRadialInnerRadius,
+  barSpace: currentBarSpace,
+  reflexRatio: currentReflexRatio,
+  reflexAlpha: currentReflexAlpha,
   gradientDirection: currentGradientDirection,
   noiseFloor: currentNoiseFloor,
   smoothing: currentSmoothing,
   stereo: currentStereo
 } = toRefs(props)
+
+// Rebuild the gradient LUT when the gradient prop changes (deep: custom stop
+// arrays may be mutated in place by settings UIs)
+watch(() => props.gradient, uploadGradientTexture, { deep: true })
 
 // Watch for bands prop changes
 watch(() => props.bands, (newBands) => {
@@ -909,6 +902,7 @@ onUnmounted(() => {
     if (peakTexture) gl.deleteTexture(peakTexture)
     if (fftTextureRight) gl.deleteTexture(fftTextureRight)
     if (peakTextureRight) gl.deleteTexture(peakTextureRight)
+    if (gradientTexture) gl.deleteTexture(gradientTexture)
     if (positionBuffer) gl.deleteBuffer(positionBuffer)
     if (program) gl.deleteProgram(program)
   }

@@ -1,6 +1,6 @@
 {
   "name": "vue-fft-visualizer",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "A high-performance WebGL-based FFT spectrum visualizer component for Vue 3",
   "type": "module",
   "module": "./dist/vue-fft-visualizer.js",

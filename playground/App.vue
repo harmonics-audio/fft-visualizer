@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { FFTVisualizer } from '../src'
+import { FFTVisualizer, gradientNames, type GradientName } from '../src'
 
 // FFT Visualizer Controls
 const bands = ref<10 | 20 | 40 | 80>(40)
@@ -9,9 +9,15 @@ const showPeaks = ref(true)
 const noiseFloor = ref(0)
 const smoothing = ref(0.5)
 const peakDecay = ref(0.89)
-const gradient = ref<'classic' | 'rainbow' | 'blue'>('rainbow')
+const gradient = ref<GradientName>('rainbow')
 const gradientDirection = ref<'vertical' | 'horizontal'>('horizontal')
 const stereo = ref(true)
+const lumiBars = ref(false)
+const radial = ref(false)
+const radialInnerRadius = ref(0.35)
+const barSpace = ref(0.25)
+const reflexRatio = ref(0)
+const reflexAlpha = ref(0.25)
 
 // Mode & WebSocket URL
 const mode = ref<'websocket' | 'local'>('local')
@@ -118,6 +124,12 @@ async function onDeviceChange() {
         :gradient="gradient"
         :gradient-direction="gradientDirection"
         :stereo="stereo"
+        :lumi-bars="lumiBars"
+        :radial="radial"
+        :radial-inner-radius="radialInnerRadius"
+        :bar-space="barSpace"
+        :reflex-ratio="reflexRatio"
+        :reflex-alpha="reflexAlpha"
       />
     </div>
     <button class="fullscreen-btn" @click="toggleFullscreen(fftContainer)">
@@ -159,6 +171,40 @@ async function onDeviceChange() {
       </div>
 
       <div class="control-group">
+        <label>
+          <input type="checkbox" v-model="lumiBars" />
+          Lumi Bars
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <input type="checkbox" v-model="radial" />
+          Radial
+        </label>
+      </div>
+
+      <div class="control-group" v-if="radial">
+        <label>Inner Radius: {{ radialInnerRadius.toFixed(2) }}</label>
+        <input type="range" v-model.number="radialInnerRadius" min="0" max="0.9" step="0.05" />
+      </div>
+
+      <div class="control-group">
+        <label>Bar Space: {{ barSpace.toFixed(2) }}</label>
+        <input type="range" v-model.number="barSpace" min="0" max="0.9" step="0.05" />
+      </div>
+
+      <div class="control-group" v-if="!radial && !stereo">
+        <label>Reflex: {{ reflexRatio.toFixed(2) }}</label>
+        <input type="range" v-model.number="reflexRatio" min="0" max="0.7" step="0.05" />
+      </div>
+
+      <div class="control-group" v-if="!radial && !stereo && reflexRatio > 0">
+        <label>Reflex Alpha: {{ reflexAlpha.toFixed(2) }}</label>
+        <input type="range" v-model.number="reflexAlpha" min="0" max="1" step="0.05" />
+      </div>
+
+      <div class="control-group">
         <label>Noise Floor: {{ noiseFloor }}</label>
         <input type="range" v-model.number="noiseFloor" min="0" max="100" />
       </div>
@@ -176,9 +222,9 @@ async function onDeviceChange() {
       <div class="control-group">
         <label>Gradient</label>
         <select v-model="gradient">
-          <option value="classic">Classic</option>
-          <option value="rainbow">Rainbow</option>
-          <option value="blue">Blue</option>
+          <option v-for="name in gradientNames" :key="name" :value="name">
+            {{ name.charAt(0).toUpperCase() + name.slice(1) }}
+          </option>
         </select>
       </div>
 

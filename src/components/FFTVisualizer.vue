@@ -48,10 +48,12 @@ const props = withDefaults(defineProps<{
   radialInnerRadius?: number
   /** Gap between bars as a fraction of bar width (0 = none, max 0.9) */
   barSpace?: number
-  /** Mirrored reflection: fraction of canvas height it occupies (0 = off, max 0.7). Mono, non-radial only */
+  /** Mirrored reflection (0 = off). Linear mono: fraction of canvas height (max 0.7). Radial: any value > 0 mirrors the bars inward inside the inner circle */
   reflexRatio?: number
   /** Brightness of the reflection (0-1) */
   reflexAlpha?: number
+  /** Glow above the bar tops (0 = off, 1 = max) */
+  glow?: number
   /** Bar color gradient: preset name (see gradientPresets) or custom stops */
   gradient?: GradientInput
   /** Gradient direction */
@@ -74,6 +76,7 @@ const props = withDefaults(defineProps<{
   barSpace: 0.25,
   reflexRatio: 0,
   reflexAlpha: 0.25,
+  glow: 0,
   gradient: 'classic',
   gradientDirection: 'vertical',
   noiseFloor: 0,
@@ -185,6 +188,7 @@ let uRadialInnerLoc: WebGLUniformLocation | null = null
 let uBarSpaceLoc: WebGLUniformLocation | null = null
 let uReflexRatioLoc: WebGLUniformLocation | null = null
 let uReflexAlphaLoc: WebGLUniformLocation | null = null
+let uGlowLoc: WebGLUniformLocation | null = null
 let uGradientTexLoc: WebGLUniformLocation | null = null
 let uGradientHorizontalLoc: WebGLUniformLocation | null = null
 let uStereoLoc: WebGLUniformLocation | null = null
@@ -215,6 +219,7 @@ const fragmentShaderSource = `
   uniform float u_barSpace;
   uniform float u_reflexRatio;
   uniform float u_reflexAlpha;
+  uniform float u_glow;
   uniform sampler2D u_fftData;
   uniform sampler2D u_peakData;
   uniform sampler2D u_fftDataRight;
@@ -268,6 +273,14 @@ const fragmentShaderSource = `
       }
       return vec4(peakColor, 0.5);
     }
+
+    if (u_glow > 0.0) {
+      // Soft light rising from the bar top, in the bar-top's color. Faded out
+      // for near-silent bars so idle columns stay dark.
+      float g = u_glow * exp((fftValue - y) * 10.0) * smoothstep(0.0, 0.05, fftValue);
+      vec3 glowColor = getGradientColor(u_gradientHorizontal ? x : fftValue);
+      return vec4(mix(bgColor.rgb, glowColor, clamp(g, 0.0, 1.0)), 1.0);
+    }
     return bgColor;
   }
 
@@ -282,25 +295,39 @@ const fragmentShaderSource = `
       float outerR = 0.5;
       float innerR = u_radialInner * outerR;
       float r = length(p);
-      if (r < innerR || r > outerR) {
+      if (r > outerR) {
         gl_FragColor = bgColor;
         return;
       }
-      float level = (r - innerR) / (outerR - innerR);
-      float angle = atan(p.x, p.y); // 0 at 12 o'clock, +/-pi at 6 o'clock
 
+      float level;
+      float radialDim = 1.0;
+      if (r >= innerR) {
+        level = (r - innerR) / (outerR - innerR);
+      } else if (u_reflexRatio > 0.0) {
+        // Reflection inside the inner circle: bars mirror inward at half height
+        level = (innerR - r) / (outerR - innerR) * 2.0;
+        radialDim = u_reflexAlpha;
+      } else {
+        gl_FragColor = bgColor;
+        return;
+      }
+
+      float angle = atan(p.x, p.y); // 0 at 12 o'clock, +/-pi at 6 o'clock
+      vec4 c;
       if (u_stereo) {
         // Left channel sweeps the right half, right channel mirrors on the left
         float x = abs(angle) / 3.14159265;
         if (angle >= 0.0) {
-          gl_FragColor = renderBars(x, level, u_fftData, u_peakData, 0.006);
+          c = renderBars(x, level, u_fftData, u_peakData, 0.006);
         } else {
-          gl_FragColor = renderBars(x, level, u_fftDataRight, u_peakDataRight, 0.006);
+          c = renderBars(x, level, u_fftDataRight, u_peakDataRight, 0.006);
         }
       } else {
         float x = angle / 6.28318531 + 0.5;
-        gl_FragColor = renderBars(x, level, u_fftData, u_peakData, 0.006);
+        c = renderBars(x, level, u_fftData, u_peakData, 0.006);
       }
+      gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, radialDim), c.a);
       return;
     }
 
@@ -325,7 +352,8 @@ const fragmentShaderSource = `
     float dim = 1.0;
     if (u_reflexRatio > 0.0) {
       if (uv.y < u_reflexRatio) {
-        y = (u_reflexRatio - uv.y) / (1.0 - u_reflexRatio);
+        // Reflection is squashed to half the main bar height
+        y = (u_reflexRatio - uv.y) / (1.0 - u_reflexRatio) * 2.0;
         dim = u_reflexAlpha;
       } else {
         y = (uv.y - u_reflexRatio) / (1.0 - u_reflexRatio);
@@ -427,6 +455,7 @@ function initWebGL(): boolean {
   uBarSpaceLoc = gl.getUniformLocation(program, 'u_barSpace')
   uReflexRatioLoc = gl.getUniformLocation(program, 'u_reflexRatio')
   uReflexAlphaLoc = gl.getUniformLocation(program, 'u_reflexAlpha')
+  uGlowLoc = gl.getUniformLocation(program, 'u_glow')
   uGradientTexLoc = gl.getUniformLocation(program, 'u_gradientTex')
   uGradientHorizontalLoc = gl.getUniformLocation(program, 'u_gradientHorizontal')
   uStereoLoc = gl.getUniformLocation(program, 'u_stereo')
@@ -755,6 +784,7 @@ function drawSpectrum() {
   gl.uniform1f(uBarSpaceLoc, Math.min(0.9, Math.max(0, currentBarSpace.value)))
   gl.uniform1f(uReflexRatioLoc, Math.min(0.7, Math.max(0, currentReflexRatio.value)))
   gl.uniform1f(uReflexAlphaLoc, Math.min(1, Math.max(0, currentReflexAlpha.value)))
+  gl.uniform1f(uGlowLoc, Math.min(1, Math.max(0, currentGlow.value)))
   gl.uniform1i(uGradientHorizontalLoc, currentGradientDirection.value === 'horizontal' ? 1 : 0)
   gl.uniform1i(uStereoLoc, isStereo ? 1 : 0)
 
@@ -792,6 +822,7 @@ const {
   barSpace: currentBarSpace,
   reflexRatio: currentReflexRatio,
   reflexAlpha: currentReflexAlpha,
+  glow: currentGlow,
   gradientDirection: currentGradientDirection,
   noiseFloor: currentNoiseFloor,
   smoothing: currentSmoothing,

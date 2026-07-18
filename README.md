@@ -60,8 +60,9 @@ import { FFTVisualizer } from 'vue-fft-visualizer'
 | `radial` | `boolean` | `false` | Circular spectrum: angle = frequency, radius = level |
 | `radialInnerRadius` | `number` | `0.35` | Radial mode: inner hole radius as fraction of outer radius (0-0.9) |
 | `barSpace` | `number` | `0.25` | Gap between bars as fraction of bar width (0-0.9) |
-| `reflexRatio` | `number` | `0` | Mirrored reflection height fraction (0 = off, max 0.7; mono, non-radial) |
+| `reflexRatio` | `number` | `0` | Mirrored reflection (0 = off). Linear mono: height fraction (max 0.7). Radial: > 0 mirrors bars inward inside the inner circle |
 | `reflexAlpha` | `number` | `0.25` | Reflection brightness (0-1) |
+| `glow` | `number` | `0` | Glow above the bar tops (0 = off, 1 = max) |
 | `gradient` | `GradientName \| GradientStop[]` | `'classic'` | Bar color gradient: a preset name or custom stops |
 | `gradientDirection` | `'vertical' \| 'horizontal'` | `'vertical'` | Gradient axis |
 

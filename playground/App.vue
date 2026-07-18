@@ -18,6 +18,7 @@ const radialInnerRadius = ref(0.35)
 const barSpace = ref(0.25)
 const reflexRatio = ref(0)
 const reflexAlpha = ref(0.25)
+const glow = ref(0)
 
 // Mode & WebSocket URL
 const mode = ref<'websocket' | 'local'>('local')
@@ -130,6 +131,7 @@ async function onDeviceChange() {
         :bar-space="barSpace"
         :reflex-ratio="reflexRatio"
         :reflex-alpha="reflexAlpha"
+        :glow="glow"
       />
     </div>
     <button class="fullscreen-btn" @click="toggleFullscreen(fftContainer)">
@@ -194,12 +196,17 @@ async function onDeviceChange() {
         <input type="range" v-model.number="barSpace" min="0" max="0.9" step="0.05" />
       </div>
 
-      <div class="control-group" v-if="!radial && !stereo">
+      <div class="control-group">
+        <label>Glow: {{ glow.toFixed(2) }}</label>
+        <input type="range" v-model.number="glow" min="0" max="1" step="0.05" />
+      </div>
+
+      <div class="control-group" v-if="radial || !stereo">
         <label>Reflex: {{ reflexRatio.toFixed(2) }}</label>
         <input type="range" v-model.number="reflexRatio" min="0" max="0.7" step="0.05" />
       </div>
 
-      <div class="control-group" v-if="!radial && !stereo && reflexRatio > 0">
+      <div class="control-group" v-if="(radial || !stereo) && reflexRatio > 0">
         <label>Reflex Alpha: {{ reflexAlpha.toFixed(2) }}</label>
         <input type="range" v-model.number="reflexAlpha" min="0" max="1" step="0.05" />
       </div>

@@ -56,6 +56,7 @@ import { FFTVisualizer } from 'vue-fft-visualizer'
 | `showPeaks` | `boolean` | `true` | Show falling peak indicators |
 | `peakDecay` | `number` | `0.997` | Peak decay rate (0.99 = slow, 0.9 = fast) |
 | `ledBars` | `boolean` | `false` | Enable LED segment effect |
+| `ledShape` | `'segment' \| 'meter'` | `'segment'` | LED look: `segment` = fixed-pixel horizontal lines (identical at every resolution); `meter` = short, wide segments sized from bar width, like a classic LED meter (spacing scales with bands/canvas size) |
 | `lumiBars` | `boolean` | `false` | Full-height bars whose brightness follows the level |
 | `radial` | `boolean` | `false` | Circular spectrum: angle = frequency, radius = level |
 | `radialInnerRadius` | `number` | `0.35` | Radial mode: inner hole radius as fraction of outer radius (0-0.9) |

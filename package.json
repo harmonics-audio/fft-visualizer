@@ -56,11 +56,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vernaillen/vue-fft-visualizer.git"
+    "url": "git+https://github.com/harmonics-audio/vue-fft-visualizer.git"
   },
   "bugs": {
-    "url": "https://github.com/vernaillen/vue-fft-visualizer/issues"
+    "url": "https://github.com/harmonics-audio/vue-fft-visualizer/issues"
   },
-  "homepage": "https://github.com/vernaillen/vue-fft-visualizer#readme",
+  "homepage": "https://github.com/harmonics-audio/vue-fft-visualizer#readme",
   "packageManager": "pnpm@11.15.0"
 }

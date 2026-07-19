@@ -12,11 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lines (2px every 20px, identical at any resolution/DPR); `meter` renders short,
   wide segments sized from bar width, like a classic LED meter
 - LED Shape selector in the playground
+- `background` prop: set the color behind and between the bars — any CSS color,
+  including `'transparent'` / `rgba(…)` for a see-through, page-blending canvas
+- Canvas uses `preserveDrawingBuffer`, so `canvas.toDataURL()` can screenshot the visual
+- `showStats` prop + `stats` slot: hide or fully replace the corner overlay
+- `autoReconnect` prop (and `autoReconnect` option on `useWebSocketFft`): reconnect
+  the WebSocket with exponential backoff (1s→30s) after an unexpected drop
+- `debug` prop: gate connection/config console logging (quiet by default)
+- `feedData(mono, left?, right?)` exposed method: push FFT frames imperatively;
+  copies the data so reusing one buffer per frame works (the `data` prop is
+  watched by reference and won't react to in-place mutation)
 
 ### Changed
 - LED gaps are now anchored to device pixels instead of scaling with bar height,
   so they look consistent at every canvas size and resolution
 - Peak markers render solid instead of snapping to the old 64-segment LED grid
+- Canvas rescales via `ResizeObserver` on the container (was a `window` resize
+  listener), so it tracks any layout change, not just window resizes
+- Connection/config logging is now silent unless `debug` is set
+- Canvas has an `aria-label` / `role="img"` for accessibility
+
+### Fixed
+- Playground no longer ships hardcoded private-LAN `ws://` URLs (caused a
+  mixed-content "insecure" flag on the HTTPS demo); WebSocket URL is now an input
 
 ## [0.2.0] - 2026-07-18 (unpublished)
 

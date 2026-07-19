@@ -116,6 +116,7 @@ const data = ref(new Uint8Array(80))
 | `dataLeft` / `dataRight` | `Uint8Array` | — | External FFT magnitudes per channel (stereo external mode) |
 | `audioSource` | `'mic' \| 'display'` | `'mic'` | Local capture source (used when `mode="local"`) |
 | `audioDeviceId` | `string` | — | Specific input device for local mic capture |
+| `autoReconnect` | `boolean` | `false` | Reconnect the WebSocket with exponential backoff (1s→30s) after an unexpected drop |
 
 ### Data processing
 
@@ -145,6 +146,9 @@ const data = ref(new Uint8Array(80))
 | `gradient` | `GradientName \| GradientStop[]` | `'classic'` | Bar colors: a preset name or custom stops |
 | `gradientDirection` | `'vertical' \| 'horizontal'` | `'vertical'` | Gradient axis |
 | `colorMode` | `'gradient' \| 'bar-level'` | `'gradient'` | `bar-level` colors each whole bar by its current level instead of by the gradient axis |
+| `background` | `string` | `'#0a0a0a'` | Background behind and between the bars. Any CSS color, including `'transparent'` or `rgba(…)` for a see-through canvas that blends into your page (opaque vs. transparent is fixed at mount) |
+| `showStats` | `boolean` | `true` | Show the small connection/fps overlay (also overridable via the `stats` slot) |
+| `debug` | `boolean` | `false` | Log connection/config diagnostics to the console (quiet by default) |
 
 ## Gradients
 
@@ -196,6 +200,11 @@ viz.value.connect()
 viz.value.disconnect()
 viz.value.isConnected          // Ref<boolean>
 
+// Feed FFT frames imperatively (mode="external") — copies the data, so it works
+// even when you reuse one buffer each frame (unlike the reference-watched `data` prop)
+viz.value.feedData(mono)                 // Uint8Array
+viz.value.feedData(mono, left, right)    // stereo
+
 // Local-audio device management
 await viz.value.getAudioDevices()   // Promise<AudioDevice[]> (prompts for mic permission)
 viz.value.audioDevices              // Ref<AudioDevice[]>
@@ -206,6 +215,12 @@ viz.value.activeAudioDeviceId       // Ref<string | undefined>
   <FFTVisualizer ref="viz" mode="local" />
 </template>
 ```
+
+### Slots
+
+| Slot | Props | Description |
+|------|-------|-------------|
+| `stats` | `{ connected: boolean, bands: number, fps: number }` | Replace the default corner overlay with your own (only rendered when `showStats` is true) |
 
 ## Composables
 
@@ -308,6 +323,16 @@ pnpm dev           # playground dev server
 pnpm build         # build the library (vue-tsc + vite)
 pnpm build:wasm    # rebuild the Rust/WASM FFT processor (needs wasm-pack)
 pnpm typecheck     # type-check only
+pnpm lint          # ESLint
+pnpm test          # all tests (node + real-browser WebGL via Playwright)
+pnpm test:node     # fast unit tests only (no browser)
+```
+
+The browser tests render the component in headless Chromium and read back canvas
+pixels (e.g. to verify transparency). They need the browser installed once:
+
+```bash
+pnpm exec playwright install chromium
 ```
 
 ## License

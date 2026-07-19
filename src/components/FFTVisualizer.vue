@@ -78,6 +78,14 @@ const props = withDefaults(defineProps<{
   smoothing?: number
   /** Enable stereo mode (left channel top, right channel bottom) */
   stereo?: boolean
+  /** Background color behind and between the bars (any solid CSS color) */
+  background?: string
+  /** Show the small connection/fps stats overlay in the corner */
+  showStats?: boolean
+  /** Auto-reconnect the WebSocket with exponential backoff after an unexpected drop (mode='websocket') */
+  autoReconnect?: boolean
+  /** Log connection/config diagnostics to the console */
+  debug?: boolean
 }>(), {
   mode: 'websocket',
   showPeaks: true,
@@ -98,7 +106,11 @@ const props = withDefaults(defineProps<{
   colorMode: 'gradient',
   noiseFloor: 0,
   smoothing: 0,
-  stereo: false
+  stereo: false,
+  background: '#0a0a0a',
+  showStats: true,
+  autoReconnect: false,
+  debug: false
 })
 
 const emit = defineEmits<{
@@ -106,6 +118,31 @@ const emit = defineEmits<{
   disconnected: []
   error: [error: string]
 }>()
+
+// Diagnostics: only logged when the `debug` prop is set, so consumers get a
+// quiet console by default. Real failures are also surfaced via the `error` event.
+function debugLog(...args: unknown[]) {
+  if (props.debug) console.log('[FFTVisualizer]', ...args)
+}
+
+// Background color for the shader, parsed from the `background` prop via a canvas
+// so any CSS color (incl. rgba()/'transparent') works. RGB drives u_bgColor; alpha
+// < 1 switches the canvas to a transparent (alpha-blended) render.
+const bgColorRgb = ref<[number, number, number]>([0.04, 0.04, 0.04])
+const bgAlpha = ref(1)
+
+function parseCssColor(color: string): [number, number, number, number] {
+  if (typeof document === 'undefined') return [0.04, 0.04, 0.04, 1]
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 1
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return [0.04, 0.04, 0.04, 1]
+  ctx.clearRect(0, 0, 1, 1)
+  ctx.fillStyle = color
+  ctx.fillRect(0, 0, 1, 1)
+  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data
+  return [r! / 255, g! / 255, b! / 255, a! / 255]
+}
 
 // Canvas and WebGL
 const canvasRef = ref<HTMLCanvasElement>()
@@ -147,6 +184,18 @@ let animationId: number | null = null
 let frameCount = 0
 let lastFpsTime = 0
 
+// Auto-reconnect (exponential backoff, opt-in via the autoReconnect prop)
+let reconnectAttempts = 0
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+const RECONNECT_BASE_MS = 1000
+const RECONNECT_MAX_MS = 30000
+
+// Resize observation
+let resizeObserver: ResizeObserver | null = null
+
+// True when the canvas uses an alpha context (transparent background)
+let transparentMode = false
+
 // WebGL state
 let gl: WebGLRenderingContext | null = null
 let program: WebGLProgram | null = null
@@ -160,6 +209,8 @@ let gradientTexture: WebGLTexture | null = null
 // Shader locations
 let uResolutionLoc: WebGLUniformLocation | null = null
 let uDprLoc: WebGLUniformLocation | null = null
+let uBgColorLoc: WebGLUniformLocation | null = null
+let uBgAlphaLoc: WebGLUniformLocation | null = null
 let uBinsLoc: WebGLUniformLocation | null = null
 let uShowPeaksLoc: WebGLUniformLocation | null = null
 let uLedBarsLoc: WebGLUniformLocation | null = null
@@ -193,6 +244,8 @@ const fragmentShaderSource = `
 
   uniform vec2 u_resolution;
   uniform float u_dpr; // device pixel ratio, for pixel-exact LED gaps
+  uniform vec3 u_bgColor; // background / empty-area color
+  uniform float u_bgAlpha; // 1 = opaque background; < 1 enables a transparent canvas
   uniform float u_bins;
   uniform bool u_showPeaks;
   uniform bool u_ledBars;
@@ -224,7 +277,7 @@ const fragmentShaderSource = `
   // metric doesn't apply, e.g. radial). Both drive the LED gap placement.
   // Works for linear bars and (via polar transform) radial.
   vec4 renderBars(float x, float y, float levelPx, float barWidthPx, sampler2D fftTex, sampler2D peakTex, float peakHalf) {
-    vec4 bgColor = vec4(0.04, 0.04, 0.04, 1.0);
+    vec4 bgColor = vec4(u_bgColor, u_bgAlpha);
 
     float barLocalX = fract(x * u_bins);
     if (barLocalX > (1.0 - u_barSpace)) {
@@ -255,7 +308,9 @@ const fragmentShaderSource = `
       if (inLedGap) return bgColor;
       float gradientPos = u_barLevelColor ? fftValue : (u_gradientHorizontal ? x : y);
       vec3 color = getGradientColor(gradientPos);
-      return vec4(mix(bgColor.rgb, color, fftValue), 1.0);
+      // Opaque bg: blend brightness into the bg color. Transparent: fade via alpha.
+      if (u_bgAlpha >= 1.0) return vec4(mix(bgColor.rgb, color, fftValue), 1.0);
+      return vec4(color, fftValue);
     }
 
     if (y <= fftValue) {
@@ -272,14 +327,16 @@ const fragmentShaderSource = `
       // for near-silent bars so idle columns stay dark.
       float g = u_glow * exp((fftValue - y) * 10.0) * smoothstep(0.0, 0.05, fftValue);
       vec3 glowColor = getGradientColor((u_barLevelColor || !u_gradientHorizontal) ? fftValue : x);
-      return vec4(mix(bgColor.rgb, glowColor, clamp(g, 0.0, 1.0)), 1.0);
+      // Opaque bg: blend glow into the bg color. Transparent: glow rides on alpha.
+      if (u_bgAlpha >= 1.0) return vec4(mix(bgColor.rgb, glowColor, clamp(g, 0.0, 1.0)), 1.0);
+      return vec4(glowColor, clamp(g, 0.0, 1.0));
     }
     return bgColor;
   }
 
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
-    vec4 bgColor = vec4(0.04, 0.04, 0.04, 1.0);
+    vec4 bgColor = vec4(u_bgColor, u_bgAlpha);
 
     if (u_radial) {
       // Polar transform: angle -> band axis, radius -> level axis
@@ -325,7 +382,12 @@ const fragmentShaderSource = `
         float x = angle / 6.28318531 + 0.5;
         c = renderBars(x, level, levelPx, 0.0, u_fftData, u_peakData, 0.006);
       }
-      gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, radialDim), c.a);
+      // Opaque bg: dim the reflection toward the bg color. Transparent: dim via alpha.
+      if (u_bgAlpha >= 1.0) {
+        gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, radialDim), c.a);
+      } else {
+        gl_FragColor = vec4(c.rgb, c.a * radialDim);
+      }
       return;
     }
 
@@ -378,7 +440,12 @@ const fragmentShaderSource = `
       }
     }
     vec4 c = renderBars(uv.x, y, levelPx, barWidthPx, u_fftData, u_peakData, 0.003);
-    gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, dim), c.a);
+    // Opaque bg: dim the reflection toward the bg color. Transparent: dim via alpha.
+    if (u_bgAlpha >= 1.0) {
+      gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, dim), c.a);
+    } else {
+      gl_FragColor = vec4(c.rgb, c.a * dim);
+    }
   }
 `
 
@@ -414,15 +481,27 @@ function initWebGL(): boolean {
   const canvas = canvasRef.value
   if (!canvas) return false
 
+  // Transparent background needs an alpha context + straight-alpha blending.
+  // Opaque (the default) keeps alpha:false so behavior is unchanged.
+  transparentMode = bgAlpha.value < 1
   gl = canvas.getContext('webgl', {
     antialias: false,
-    alpha: false,
-    preserveDrawingBuffer: false
+    alpha: transparentMode,
+    premultipliedAlpha: false,
+    // Keep the rendered frame readable so consumers can screenshot the canvas
+    // (canvas.toDataURL) and pixel tests are deterministic. The component fully
+    // redraws every frame, so there is no visual difference.
+    preserveDrawingBuffer: true
   })
 
   if (!gl) {
     console.error('WebGL not supported')
     return false
+  }
+
+  if (transparentMode) {
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
   }
 
   // Create shaders
@@ -465,6 +544,8 @@ function initWebGL(): boolean {
   // Get uniform locations
   uResolutionLoc = gl.getUniformLocation(program, 'u_resolution')
   uDprLoc = gl.getUniformLocation(program, 'u_dpr')
+  uBgColorLoc = gl.getUniformLocation(program, 'u_bgColor')
+  uBgAlphaLoc = gl.getUniformLocation(program, 'u_bgAlpha')
   uBinsLoc = gl.getUniformLocation(program, 'u_bins')
   uShowPeaksLoc = gl.getUniformLocation(program, 'u_showPeaks')
   uLedBarsLoc = gl.getUniformLocation(program, 'u_ledBars')
@@ -583,15 +664,29 @@ function initBuffers(size: number) {
   displayPeakDataRight.value = new Float32Array(displayBins.value)
 }
 
+function scheduleReconnect() {
+  if (!props.autoReconnect || props.mode !== 'websocket') return
+  if (reconnectTimer) clearTimeout(reconnectTimer)
+
+  const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** reconnectAttempts)
+  reconnectAttempts++
+  debugLog(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`)
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    if (props.mode === 'websocket') connectWebSocket()
+  }, delay)
+}
+
 function connectWebSocket() {
   if (websocket || !props.websocketUrl) return
 
-  console.log('[FFTVisualizer] Connecting to:', props.websocketUrl)
+  debugLog('Connecting to:', props.websocketUrl)
   websocket = new WebSocket(props.websocketUrl)
   websocket.binaryType = 'arraybuffer'
 
   websocket.onopen = () => {
-    console.log('[FFTVisualizer] Connected')
+    debugLog('Connected')
+    reconnectAttempts = 0
     isConnected.value = true
     emit('connected')
     startRendering()
@@ -606,10 +701,10 @@ function connectWebSocket() {
         const config = JSON.parse(data)
         if (config.type === 'config' && config.mode === 'fft') {
           initBuffers(config.bins || 80)
-          console.log(`[FFTVisualizer] Config: ${config.bins} server bins, displaying ${displayBins.value} bands @ ${config.fps}fps`)
+          debugLog(`Config: ${config.bins} server bins, displaying ${displayBins.value} bands @ ${config.fps}fps`)
         }
       } catch (e) {
-        console.warn('[FFTVisualizer] Failed to parse config:', e)
+        debugLog('Failed to parse config:', e)
       }
       return
     }
@@ -624,20 +719,27 @@ function connectWebSocket() {
   }
 
   websocket.onerror = (event) => {
-    console.error('[FFTVisualizer] Error:', event)
+    debugLog('WebSocket error:', event)
     emit('error', 'WebSocket connection error')
   }
 
   websocket.onclose = () => {
-    console.log('[FFTVisualizer] Disconnected')
+    debugLog('Disconnected')
     isConnected.value = false
     websocket = null
     emit('disconnected')
     stopRendering()
+    // Only fires for unexpected closes — manual disconnect nulls this handler first
+    scheduleReconnect()
   }
 }
 
 function disconnectWebSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  reconnectAttempts = 0
   if (websocket) {
     websocket.onopen = null
     websocket.onmessage = null
@@ -661,7 +763,7 @@ async function startLocalAudio() {
     emit('connected')
     startRendering()
   } catch (e) {
-    console.error('[FFTVisualizer] Local audio error:', e)
+    debugLog('Local audio error:', e)
     emit('error', e instanceof Error ? e.message : 'Failed to start local audio')
   }
 }
@@ -762,6 +864,8 @@ function drawSpectrum() {
   // Set uniforms
   gl.uniform2f(uResolutionLoc, canvas.width, canvas.height)
   gl.uniform1f(uDprLoc, window.devicePixelRatio || 1)
+  gl.uniform3f(uBgColorLoc, bgColorRgb.value[0], bgColorRgb.value[1], bgColorRgb.value[2])
+  gl.uniform1f(uBgAlphaLoc, bgAlpha.value)
   gl.uniform1f(uBinsLoc, numBins)
   gl.uniform1i(uShowPeaksLoc, currentShowPeaks.value ? 1 : 0)
   gl.uniform1i(uLedBarsLoc, currentLedBars.value ? 1 : 0)
@@ -778,8 +882,13 @@ function drawSpectrum() {
   gl.uniform1i(uBarLevelColorLoc, currentColorMode.value === 'bar-level' ? 1 : 0)
   gl.uniform1i(uStereoLoc, isStereo ? 1 : 0)
 
-  // Draw
+  // Draw. In transparent mode, clear first so blended fragments don't accumulate
+  // across frames (opaque mode's full-screen quad overwrites every pixel anyway).
   gl.viewport(0, 0, canvas.width, canvas.height)
+  if (transparentMode) {
+    gl.clearColor(0, 0, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+  }
   gl.drawArrays(gl.TRIANGLES, 0, 6)
 }
 
@@ -825,6 +934,14 @@ const {
 // Rebuild the gradient LUT when the gradient prop changes (deep: custom stop
 // arrays may be mutated in place by settings UIs)
 watch(() => props.gradient, uploadGradientTexture, { deep: true })
+
+// Reparse the background color when the prop changes (immediate: seed on setup).
+// Note: opaque vs transparent is fixed at mount (context alpha can't change live).
+watch(() => props.background, (c) => {
+  const [r, g, b, a] = parseCssColor(c)
+  bgColorRgb.value = [r, g, b]
+  bgAlpha.value = a
+}, { immediate: true })
 
 // Watch for bands prop changes
 watch(() => props.bands, (newBands) => {
@@ -907,17 +1024,29 @@ onMounted(() => {
   handleResize()
 
   if (!initWebGL()) {
-    console.error('[FFTVisualizer] Failed to initialize WebGL')
+    debugLog('Failed to initialize WebGL')
     emit('error', 'WebGL initialization failed')
     return
   }
 
-  window.addEventListener('resize', handleResize)
+  // Observe the container so the canvas rescales on any layout change
+  // (flex/grid resize, sidebar toggle, …), not just window resizes.
+  if (containerRef.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(containerRef.value)
+  } else {
+    window.addEventListener('resize', handleResize)
+  }
   connect()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  } else {
+    window.removeEventListener('resize', handleResize)
+  }
   disconnect()
 
   // Cleanup WebGL resources
@@ -932,10 +1061,26 @@ onUnmounted(() => {
   }
 })
 
+// Imperatively feed FFT frames (0-255 magnitudes). Preferred over the `data`
+// prop when you mutate one buffer in place each frame — the prop is watched by
+// reference and won't react to in-place mutation. Pass `left` and `right` for
+// stereo. Data is copied, so the caller may reuse its buffers.
+function feedData(data: Uint8Array, left?: Uint8Array, right?: Uint8Array) {
+  if (left && right) {
+    if (left.length !== serverBins.value) initBuffers(left.length)
+    processLeftData(new Uint8Array(left))
+    processRightData(new Uint8Array(right))
+  } else {
+    if (data.length !== serverBins.value) initBuffers(data.length)
+    processMonoData(new Uint8Array(data))
+  }
+}
+
 // Expose methods for external control
 defineExpose({
   connect,
   disconnect,
+  feedData,
   isConnected,
   audioDevices: localAudio.devices,
   activeAudioDeviceId: localAudio.activeDeviceId,
@@ -947,14 +1092,19 @@ defineExpose({
   <div
     ref="containerRef"
     class="fft-visualizer"
+    :style="{ background }"
   >
     <canvas
       ref="canvasRef"
       class="fft-canvas"
+      role="img"
+      :aria-label="isConnected ? `Audio spectrum visualization, ${displayBins} bands` : 'Audio spectrum visualizer (inactive)'"
     />
-    <div class="fft-stats">
-      <span v-if="isConnected" class="connected">{{ displayBins }} bands @ {{ fps }}fps</span>
-      <span v-else class="disconnected">Disconnected</span>
+    <div v-if="showStats" class="fft-stats">
+      <slot name="stats" :connected="isConnected" :bands="displayBins" :fps="fps">
+        <span v-if="isConnected" class="connected">{{ displayBins }} bands @ {{ fps }}fps</span>
+        <span v-else class="disconnected">Disconnected</span>
+      </slot>
     </div>
   </div>
 </template>
@@ -965,7 +1115,7 @@ defineExpose({
   width: 100%;
   height: 100%;
   min-height: 100px;
-  background: #0a0a0a;
+  /* Background is set inline from the `background` prop (default #0a0a0a) */
   border-radius: 8px;
   overflow: hidden;
 }

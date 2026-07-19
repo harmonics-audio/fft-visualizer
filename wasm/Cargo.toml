@@ -13,5 +13,6 @@ realfft = "3.4"
 js-sys = "0.3"
 
 [profile.release]
+# opt-level "s" beats "z" here: measured 213 KB vs 224 KB for "z" (realfft + LTO)
 opt-level = "s"
 lto = true

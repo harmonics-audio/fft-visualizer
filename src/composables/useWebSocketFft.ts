@@ -17,6 +17,8 @@ export interface WebSocketFftOptions {
    * halving update latency and smoothing bar motion at the cost of ~2x FFT compute.
    */
   overlap?: number
+  /** Auto-reconnect with exponential backoff after an unexpected close (default: false) */
+  autoReconnect?: boolean
 }
 
 export interface WebSocketFftReturn {
@@ -43,6 +45,7 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   const endFreq = options?.endFreq ?? 18000
   const overlap = Math.min(0.75, Math.max(0, options?.overlap ?? 0))
   const hopSize = Math.max(1, Math.round(fftSize * (1 - overlap)))
+  const autoReconnect = options?.autoReconnect ?? false
 
   const fftData = ref<Uint8Array>(new Uint8Array(bins))
   const fftDataLeft = ref<Uint8Array>(new Uint8Array(bins))
@@ -56,6 +59,28 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   let sampleRate: number | null = null
   let configuredBitDepth: number = 16
   let configuredChannels: number = 2
+
+  // Auto-reconnect state (exponential backoff)
+  let reconnectAttempts = 0
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let lastUrl: string | null = null
+  let reconnecting = false
+  const RECONNECT_BASE_MS = 1000
+  const RECONNECT_MAX_MS = 30000
+
+  function scheduleReconnect() {
+    if (!autoReconnect || !lastUrl) return
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+    const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** reconnectAttempts)
+    reconnectAttempts++
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      if (!lastUrl) return
+      reconnecting = true
+      connect(lastUrl)
+      reconnecting = false
+    }, delay)
+  }
 
   // Accumulation buffers for partial frames (mono, left, right)
   let accumulationBuffer: Float32Array<ArrayBufferLike> = new Float32Array(0)
@@ -126,6 +151,8 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   }
 
   function connect(url: string) {
+    if (!reconnecting) reconnectAttempts = 0
+    lastUrl = url
     disconnect()
 
     websocket = new WebSocket(url)
@@ -133,6 +160,7 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
 
     websocket.onopen = () => {
       isConnected.value = true
+      reconnectAttempts = 0
     }
 
     websocket.onmessage = async (event) => {
@@ -170,10 +198,16 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
     websocket.onclose = () => {
       isConnected.value = false
       websocket = null
+      // Only fires for unexpected closes — disconnect() nulls this handler first
+      scheduleReconnect()
     }
   }
 
   function disconnect() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
     if (websocket) {
       websocket.onopen = null
       websocket.onmessage = null

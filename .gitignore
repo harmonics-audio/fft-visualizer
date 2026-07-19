@@ -18,6 +18,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Packed tarballs
+*.tgz
+
 # Python
 __pycache__/
 *.pyc

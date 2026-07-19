@@ -1,4 +1,6 @@
 import { ref, onUnmounted, type Ref } from 'vue'
+import { pcmToChannels } from '../pcm'
+import type { FftProcessor } from '../../wasm/pkg/fft_wasm'
 
 export interface WebSocketFftOptions {
   /** FFT window size (default: 2048) */
@@ -47,9 +49,9 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   const fftDataRight = ref<Uint8Array>(new Uint8Array(bins))
   const isConnected = ref(false)
 
-  let processor: any = null
-  let processorLeft: any = null
-  let processorRight: any = null
+  let processor: FftProcessor | null = null
+  let processorLeft: FftProcessor | null = null
+  let processorRight: FftProcessor | null = null
   let websocket: WebSocket | null = null
   let sampleRate: number | null = null
   let configuredBitDepth: number = 16
@@ -71,80 +73,6 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
     processor = new FftProcessor(fftSize, bins, startFreq, endFreq, sampleRate)
     processorLeft = new FftProcessor(fftSize, bins, startFreq, endFreq, sampleRate)
     processorRight = new FftProcessor(fftSize, bins, startFreq, endFreq, sampleRate)
-  }
-
-  interface PcmChannels {
-    mono: Float32Array
-    left: Float32Array
-    right: Float32Array
-  }
-
-  function pcmToChannels(buffer: ArrayBuffer, bitDepth: number, channels: number): PcmChannels {
-    let mono: Float32Array
-    let left: Float32Array
-    let right: Float32Array
-
-    if (bitDepth === 16) {
-      const int16 = new Int16Array(buffer)
-      const frameCount = Math.floor(int16.length / channels)
-      mono = new Float32Array(frameCount)
-      left = new Float32Array(frameCount)
-      right = new Float32Array(frameCount)
-      for (let i = 0; i < frameCount; i++) {
-        const l = int16[i * channels]! / 32768
-        const r = channels > 1 ? int16[i * channels + 1]! / 32768 : l
-        left[i] = l
-        right[i] = r
-        mono[i] = (l + r) / 2
-      }
-    } else if (bitDepth === 24) {
-      const bytes = new Uint8Array(buffer)
-      const bytesPerSample = 3
-      const frameCount = Math.floor(bytes.length / (bytesPerSample * channels))
-      mono = new Float32Array(frameCount)
-      left = new Float32Array(frameCount)
-      right = new Float32Array(frameCount)
-      for (let i = 0; i < frameCount; i++) {
-        // Left channel
-        const lOffset = (i * channels) * bytesPerSample
-        let lSample = bytes[lOffset]! | (bytes[lOffset + 1]! << 8) | (bytes[lOffset + 2]! << 16)
-        if (lSample & 0x800000) lSample |= 0xFF000000
-        const l = lSample / 8388608
-
-        // Right channel
-        let r: number
-        if (channels > 1) {
-          const rOffset = (i * channels + 1) * bytesPerSample
-          let rSample = bytes[rOffset]! | (bytes[rOffset + 1]! << 8) | (bytes[rOffset + 2]! << 16)
-          if (rSample & 0x800000) rSample |= 0xFF000000
-          r = rSample / 8388608
-        } else {
-          r = l
-        }
-
-        left[i] = l
-        right[i] = r
-        mono[i] = (l + r) / 2
-      }
-    } else if (bitDepth === 32) {
-      const int32 = new Int32Array(buffer)
-      const frameCount = Math.floor(int32.length / channels)
-      mono = new Float32Array(frameCount)
-      left = new Float32Array(frameCount)
-      right = new Float32Array(frameCount)
-      for (let i = 0; i < frameCount; i++) {
-        const l = int32[i * channels]! / 2147483648
-        const r = channels > 1 ? int32[i * channels + 1]! / 2147483648 : l
-        left[i] = l
-        right[i] = r
-        mono[i] = (l + r) / 2
-      }
-    } else {
-      const empty = new Float32Array(0)
-      return { mono: empty, left: empty, right: empty }
-    }
-
-    return { mono, left, right }
   }
 
   function processAccumulatedSamples() {

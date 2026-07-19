@@ -1,4 +1,5 @@
 import { ref, type Ref } from 'vue'
+import type { FftProcessor } from '../../wasm/pkg/fft_wasm'
 
 export type AudioSourceType = 'mic' | 'display'
 
@@ -58,7 +59,7 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
   let sourceNode: MediaStreamAudioSourceNode | null = null
   let analyserNode: AnalyserNode | null = null
   let animationFrameId: number | null = null
-  let processor: any = null // FftProcessor from WASM
+  let processor: FftProcessor | null = null
   let timeDomainBuffer: Float32Array<ArrayBuffer> | null = null
 
   async function enumerateAudioDevices(): Promise<AudioDevice[]> {

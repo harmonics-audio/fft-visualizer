@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => ({
     wasm(),
     ...(mode !== 'playground' ? [dts({
       insertTypesEntry: true,
-      include: ['src/**/*.ts', 'src/**/*.vue', 'wasm/pkg/*.d.ts']
+      include: ['src/**/*.ts', 'src/**/*.vue', 'wasm/pkg/*.d.ts'],
+      exclude: ['src/**/*.test.ts']
     })] : [])
   ],
   build: mode === 'playground'

@@ -27,18 +27,28 @@
     "build:playground": "vue-tsc && vite build --mode playground",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "prepack": "pnpm build:wasm && pnpm build"
   },
   "peerDependencies": {
     "vue": "^3.4.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^6.0.8",
+    "eslint": "^10.7.0",
+    "eslint-plugin-vue": "^10.9.2",
+    "globals": "^17.7.0",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.64.0",
     "vite": "^8.1.5",
     "vite-plugin-dts": "^5.0.3",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^4.1.10",
     "vue": "^3.5.40",
     "vue-tsc": "^3.3.7"
   },

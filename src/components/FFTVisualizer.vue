@@ -2,6 +2,14 @@
 import { ref, computed, watch, onMounted, onUnmounted, toRefs } from 'vue'
 import { useLocalAudio } from '../composables/useLocalAudio'
 import { resolveGradientStops, buildGradientLUT, GRADIENT_LUT_SIZE, type GradientInput } from '../gradients'
+import {
+  aggregateBins,
+  aggregatePeaks,
+  peakToUint8,
+  applyNoiseFloor,
+  applySmoothing,
+  updatePeaks
+} from '../processing'
 
 /**
  * FFT Visualizer - High-performance WebGL spectrum analyzer
@@ -129,43 +137,6 @@ const displayFftDataLeft = ref<Uint8Array>(new Uint8Array(props.bands))
 const displayPeakDataLeft = ref<Float32Array>(new Float32Array(props.bands))
 const displayFftDataRight = ref<Uint8Array>(new Uint8Array(props.bands))
 const displayPeakDataRight = ref<Float32Array>(new Float32Array(props.bands))
-
-// Aggregate bins down to fewer bands (max of each group)
-function aggregateBins(source: Uint8Array, targetBands: number): Uint8Array {
-  if (targetBands >= source.length) return source
-
-  const result = new Uint8Array(targetBands)
-  const ratio = source.length / targetBands
-
-  for (let i = 0; i < targetBands; i++) {
-    const startBin = Math.floor(i * ratio)
-    const endBin = Math.floor((i + 1) * ratio)
-    let maxVal = 0
-    for (let j = startBin; j < endBin; j++) {
-      if (source[j]! > maxVal) maxVal = source[j]!
-    }
-    result[i] = maxVal
-  }
-  return result
-}
-
-function aggregatePeaks(source: Float32Array, targetBands: number): Float32Array {
-  if (targetBands >= source.length) return source
-
-  const result = new Float32Array(targetBands)
-  const ratio = source.length / targetBands
-
-  for (let i = 0; i < targetBands; i++) {
-    const startBin = Math.floor(i * ratio)
-    const endBin = Math.floor((i + 1) * ratio)
-    let maxVal = 0
-    for (let j = startBin; j < endBin; j++) {
-      if (source[j]! > maxVal) maxVal = source[j]!
-    }
-    result[i] = maxVal
-  }
-  return result
-}
 
 // Local audio (WASM FFT)
 const localAudio = useLocalAudio({ bins: props.bands })
@@ -562,38 +533,10 @@ function processFFTData(
   displayFftRef: { value: Uint8Array },
   displayPeakRef: { value: Float32Array }
 ) {
-  // Apply noise floor threshold
-  const threshold = currentNoiseFloor.value
-  for (let i = 0; i < newData.length; i++) {
-    newData[i] = newData[i]! > threshold ? newData[i]! - threshold : 0
-  }
-  // Rescale to use full range after threshold
-  if (threshold > 0) {
-    const scale = 255 / (255 - threshold)
-    for (let i = 0; i < newData.length; i++) {
-      newData[i] = Math.min(255, Math.floor(newData[i]! * scale))
-    }
-  }
-
-  // Apply temporal smoothing
-  const smooth = currentSmoothing.value
-  if (smooth > 0) {
-    for (let i = 0; i < newData.length; i++) {
-      smoothedRef.value[i] = smooth * smoothedRef.value[i]! + (1 - smooth) * newData[i]!
-      newData[i] = Math.floor(smoothedRef.value[i]!)
-    }
-  }
+  applyNoiseFloor(newData, currentNoiseFloor.value)
+  applySmoothing(newData, smoothedRef.value, currentSmoothing.value)
   fftRef.value = newData
-
-  // Update peaks
-  for (let i = 0; i < newData.length; i++) {
-    const value = newData[i]! / 255
-    if (value > peakRef.value[i]!) {
-      peakRef.value[i] = value
-    } else {
-      peakRef.value[i]! *= currentPeakDecay.value
-    }
-  }
+  updatePeaks(peakRef.value, newData, currentPeakDecay.value)
 
   // Aggregate to display bands
   displayFftRef.value = aggregateBins(fftRef.value, displayBins.value)
@@ -792,14 +735,6 @@ function uploadTexture(unit: number, texture: WebGLTexture | null, data: Uint8Ar
     gl.LUMINANCE, gl.UNSIGNED_BYTE,
     data
   )
-}
-
-function peakToUint8(peakRef: Float32Array, numBins: number): Uint8Array {
-  const result = new Uint8Array(numBins)
-  for (let i = 0; i < numBins; i++) {
-    result[i] = Math.min(255, Math.floor(peakRef[i]! * 255))
-  }
-  return result
 }
 
 function drawSpectrum() {

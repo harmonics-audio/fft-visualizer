@@ -113,10 +113,10 @@ onMounted(() => {
   } catch { /* corrupt storage — start fresh */ }
 })
 
-// Mode & WebSocket URL
+// Mode & WebSocket URL. Empty by default so the hosted (HTTPS) demo never
+// auto-connects to an insecure ws:// endpoint. Enter your own wss:// server.
 const mode = ref<'websocket' | 'local'>('local')
-const wsUrl = ref('ws://10.0.2.213:3002')
-const wsOptions = ['ws://10.0.2.213:3002', 'ws://127.0.0.1:3001']
+const wsUrl = ref('')
 
 // Audio source & device selection
 const audioSource = ref<'mic' | 'display'>('mic')
@@ -190,9 +190,12 @@ async function onDeviceChange() {
           </select>
         </template>
         <template v-if="mode === 'websocket'">
-          <select v-model="wsUrl">
-            <option v-for="url in wsOptions" :key="url" :value="url">{{ url }}</option>
-          </select>
+          <input
+            v-model="wsUrl"
+            type="text"
+            class="ws-input"
+            placeholder="wss://your-server:port"
+          />
         </template>
         <button
           class="connect-btn"
@@ -454,7 +457,7 @@ h1 {
   cursor: pointer;
 }
 
-select, .connect-btn {
+select, .ws-input, .connect-btn {
   background: #222;
   color: #eee;
   border: 1px solid #444;
@@ -463,7 +466,12 @@ select, .connect-btn {
   cursor: pointer;
 }
 
-select:hover, .connect-btn:hover {
+.ws-input {
+  cursor: text;
+  min-width: 16rem;
+}
+
+select:hover, .ws-input:hover, .connect-btn:hover {
   border-color: #666;
 }
 

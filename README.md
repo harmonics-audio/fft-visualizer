@@ -1,6 +1,8 @@
 # vue-fft-visualizer
 
-A high-performance, WebGL-based FFT spectrum visualizer component for Vue 3.
+A high-performance, WebGL-based **real-time audio spectrum analyzer** and FFT
+visualizer component for Vue 3 — visualize the microphone, tab/system audio, a
+WebSocket stream, or your own Web Audio data.
 
 The entire visual — bars, LED segments, radial layout, gradient, glow, reflection —
 is drawn by a single fragment shader in one GPU draw call, so it stays smooth even

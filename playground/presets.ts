@@ -7,6 +7,7 @@ export interface FftPresetSettings {
   showPeaks: boolean
   peakDecay: number
   ledBars: boolean
+  ledShape?: 'segment' | 'meter'
   lumiBars: boolean
   radial: boolean
   radialInnerRadius: number

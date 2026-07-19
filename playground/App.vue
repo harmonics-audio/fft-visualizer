@@ -6,6 +6,7 @@ import { builtinPresets, type FftPreset, type FftPresetSettings } from './preset
 // FFT Visualizer Controls
 const bands = ref<10 | 20 | 40 | 80>(40)
 const ledBars = ref(false)
+const ledShape = ref<'segment' | 'meter'>('segment')
 const showPeaks = ref(true)
 const noiseFloor = ref(0)
 const smoothing = ref(0.5)
@@ -44,6 +45,7 @@ function currentSettings(): FftPresetSettings {
     showPeaks: showPeaks.value,
     peakDecay: peakDecay.value,
     ledBars: ledBars.value,
+    ledShape: ledShape.value,
     lumiBars: lumiBars.value,
     radial: radial.value,
     radialInnerRadius: radialInnerRadius.value,
@@ -69,6 +71,7 @@ function applyPreset(name: string) {
   showPeaks.value = s.showPeaks
   peakDecay.value = s.peakDecay
   ledBars.value = s.ledBars
+  ledShape.value = s.ledShape ?? 'segment'
   lumiBars.value = s.lumiBars
   radial.value = s.radial
   radialInnerRadius.value = s.radialInnerRadius
@@ -208,6 +211,7 @@ async function onDeviceChange() {
         :audio-device-id="selectedDeviceId || undefined"
         :bands="bands"
         :led-bars="ledBars"
+        :led-shape="ledShape"
         :show-peaks="showPeaks"
         :noise-floor="noiseFloor"
         :smoothing="smoothing"
@@ -265,6 +269,14 @@ async function onDeviceChange() {
           <input type="checkbox" v-model="ledBars" />
           LED Bars
         </label>
+      </div>
+
+      <div v-if="ledBars" class="control-group">
+        <label>LED Shape</label>
+        <select v-model="ledShape">
+          <option value="segment">Segment</option>
+          <option value="meter">Meter</option>
+        </select>
       </div>
 
       <div class="control-group">

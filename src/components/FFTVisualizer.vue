@@ -40,6 +40,8 @@ const props = withDefaults(defineProps<{
   bands?: 10 | 20 | 40 | 80
   /** Enable LED segment effect */
   ledBars?: boolean
+  /** LED look: 'segment' = fixed-pixel horizontal segments (consistent at every resolution); 'meter' = short, wide segments sized from bar width, like a classic LED meter (spacing varies with bands/size) */
+  ledShape?: 'segment' | 'meter'
   /** Full-height bars whose brightness follows the level */
   lumiBars?: boolean
   /** Render the spectrum as a circle (angle = frequency, radius = level) */
@@ -74,6 +76,7 @@ const props = withDefaults(defineProps<{
   peakDecay: 0.997,
   bands: 80,
   ledBars: false,
+  ledShape: 'segment',
   lumiBars: false,
   radial: false,
   radialInnerRadius: 0.35,
@@ -185,9 +188,11 @@ let gradientTexture: WebGLTexture | null = null
 
 // Shader locations
 let uResolutionLoc: WebGLUniformLocation | null = null
+let uDprLoc: WebGLUniformLocation | null = null
 let uBinsLoc: WebGLUniformLocation | null = null
 let uShowPeaksLoc: WebGLUniformLocation | null = null
 let uLedBarsLoc: WebGLUniformLocation | null = null
+let uLedMeterLoc: WebGLUniformLocation | null = null
 let uLumiBarsLoc: WebGLUniformLocation | null = null
 let uRadialLoc: WebGLUniformLocation | null = null
 let uRadialInnerLoc: WebGLUniformLocation | null = null
@@ -216,9 +221,11 @@ const fragmentShaderSource = `
   precision mediump float;
 
   uniform vec2 u_resolution;
+  uniform float u_dpr; // device pixel ratio, for pixel-exact LED gaps
   uniform float u_bins;
   uniform bool u_showPeaks;
   uniform bool u_ledBars;
+  uniform bool u_ledMeter;
   uniform bool u_lumiBars;
   uniform bool u_gradientHorizontal;
   uniform bool u_barLevelColor;
@@ -241,8 +248,11 @@ const fragmentShaderSource = `
   }
 
   // Render one channel in "column space": x = band axis (0-1), y = level axis (0-1).
-  // Works for linear bars and (via polar transform in main) radial mode.
-  vec4 renderBars(float x, float y, sampler2D fftTex, sampler2D peakTex, float peakHalf) {
+  // levelPx is y expressed in device pixels along the level axis (measured from
+  // the bar base); barWidthPx is one bar's pitch in device pixels (0 when the
+  // metric doesn't apply, e.g. radial). Both drive the LED gap placement.
+  // Works for linear bars and (via polar transform) radial.
+  vec4 renderBars(float x, float y, float levelPx, float barWidthPx, sampler2D fftTex, sampler2D peakTex, float peakHalf) {
     vec4 bgColor = vec4(0.04, 0.04, 0.04, 1.0);
 
     float barLocalX = fract(x * u_bins);
@@ -254,10 +264,20 @@ const fragmentShaderSource = `
     float fftValue = texture2D(fftTex, vec2(texCoord, 0.5)).r;
     float peakValue = texture2D(peakTex, vec2(texCoord, 0.5)).r;
 
-    float ledSegments = 64.0;
-    float ledGap = 0.25;
-    float segmentY = fract(y * ledSegments);
-    bool inLedGap = u_ledBars && segmentY > (1.0 - ledGap);
+    // LED gaps.
+    //  - 'segment': fixed 2px-wide black line every 20 CSS px, anchored to device
+    //    pixels so gaps look identical at any canvas size or DPR.
+    //  - 'meter': short, wide segments sized from bar width (pitch ~= half a bar
+    //    width, so lit cells run ~2:1 wider than tall) with thin proportional
+    //    gaps, like a classic LED meter. Scales with bar width, so it varies with
+    //    bands/canvas size.
+    float ledSpacing = 20.0 * u_dpr;
+    float ledGapPx = 2.0 * u_dpr;
+    if (u_ledMeter && barWidthPx > 0.0) {
+      ledSpacing = barWidthPx * 0.5;
+      ledGapPx = u_barSpace * ledSpacing;
+    }
+    bool inLedGap = u_ledBars && mod(levelPx, ledSpacing) < ledGapPx;
 
     if (u_lumiBars) {
       // Full-height bars whose brightness follows the level
@@ -273,15 +293,7 @@ const fragmentShaderSource = `
       return vec4(getGradientColor(gradientPos), 1.0);
     } else if (u_showPeaks && y >= peakValue - peakHalf && y <= peakValue + peakHalf) {
       float peakGradientPos = (u_barLevelColor || !u_gradientHorizontal) ? peakValue : x;
-      vec3 peakColor = getGradientColor(peakGradientPos);
-      if (u_ledBars) {
-        float peakSegment = floor(peakValue * ledSegments) / ledSegments;
-        if (y >= peakSegment && y <= peakSegment + (1.0 / ledSegments) * (1.0 - ledGap)) {
-          return vec4(peakColor, 0.5);
-        }
-        return bgColor;
-      }
-      return vec4(peakColor, 0.5);
+      return vec4(getGradientColor(peakGradientPos), 0.5);
     }
 
     if (u_glow > 0.0) {
@@ -311,12 +323,15 @@ const fragmentShaderSource = `
       }
 
       float level;
+      float levelPx;
       float radialDim = 1.0;
       if (r >= innerR) {
         level = (r - innerR) / (outerR - innerR);
+        levelPx = (r - innerR) * u_resolution.y;
       } else if (u_reflexRatio > 0.0) {
         // Reflection inside the inner circle: bars mirror inward at half height
         level = (innerR - r) / (outerR - innerR) * 2.0;
+        levelPx = (innerR - r) * u_resolution.y;
         radialDim = u_reflexAlpha;
       } else {
         gl_FragColor = bgColor;
@@ -331,13 +346,13 @@ const fragmentShaderSource = `
         // Left channel sweeps the right half, right channel mirrors on the left
         float x = abs(angle) / 3.14159265;
         if (angle >= 0.0) {
-          c = renderBars(x, level, u_fftData, u_peakData, 0.006);
+          c = renderBars(x, level, levelPx, 0.0, u_fftData, u_peakData, 0.006);
         } else {
-          c = renderBars(x, level, u_fftDataRight, u_peakDataRight, 0.006);
+          c = renderBars(x, level, levelPx, 0.0, u_fftDataRight, u_peakDataRight, 0.006);
         }
       } else {
         float x = angle / 6.28318531 + 0.5;
-        c = renderBars(x, level, u_fftData, u_peakData, 0.006);
+        c = renderBars(x, level, levelPx, 0.0, u_fftData, u_peakData, 0.006);
       }
       gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, radialDim), c.a);
       return;
@@ -345,13 +360,20 @@ const fragmentShaderSource = `
 
     // Rotation (clockwise): sample the un-rotated content for this pixel.
     // Content is stretched to the canvas, so 90/270 also swap the axes' span.
+    bool axisSwap = false;
     if (u_rotation > 2.5) {
       uv = vec2(uv.y, 1.0 - uv.x);
+      axisSwap = true;
     } else if (u_rotation > 1.5) {
       uv = vec2(1.0 - uv.x, 1.0 - uv.y);
     } else if (u_rotation > 0.5) {
       uv = vec2(1.0 - uv.y, uv.x);
+      axisSwap = true;
     }
+    // Pixel extents of the axes; 90/270 rotations swap width and height.
+    float levelRes = axisSwap ? u_resolution.x : u_resolution.y;
+    float bandRes = axisSwap ? u_resolution.y : u_resolution.x;
+    float barWidthPx = bandRes / u_bins;
 
     if (u_stereo) {
       // Thin black divider line between left and right channels
@@ -362,26 +384,29 @@ const fragmentShaderSource = `
       }
       // Left channel grows up from center, right channel grows down from center
       if (uv.y >= 0.5) {
-        gl_FragColor = renderBars(uv.x, (uv.y - 0.5) * 2.0, u_fftData, u_peakData, 0.006);
+        gl_FragColor = renderBars(uv.x, (uv.y - 0.5) * 2.0, (uv.y - 0.5) * levelRes, barWidthPx, u_fftData, u_peakData, 0.006);
       } else {
-        gl_FragColor = renderBars(uv.x, (0.5 - uv.y) * 2.0, u_fftDataRight, u_peakDataRight, 0.006);
+        gl_FragColor = renderBars(uv.x, (0.5 - uv.y) * 2.0, (0.5 - uv.y) * levelRes, barWidthPx, u_fftDataRight, u_peakDataRight, 0.006);
       }
       return;
     }
 
     // Mono, with optional mirrored reflection in the bottom u_reflexRatio of the canvas
     float y = uv.y;
+    float levelPx = uv.y * levelRes;
     float dim = 1.0;
     if (u_reflexRatio > 0.0) {
       if (uv.y < u_reflexRatio) {
         // Reflection is squashed to half the main bar height
         y = (u_reflexRatio - uv.y) / (1.0 - u_reflexRatio) * 2.0;
+        levelPx = (u_reflexRatio - uv.y) * levelRes;
         dim = u_reflexAlpha;
       } else {
         y = (uv.y - u_reflexRatio) / (1.0 - u_reflexRatio);
+        levelPx = (uv.y - u_reflexRatio) * levelRes;
       }
     }
-    vec4 c = renderBars(uv.x, y, u_fftData, u_peakData, 0.003);
+    vec4 c = renderBars(uv.x, y, levelPx, barWidthPx, u_fftData, u_peakData, 0.003);
     gl_FragColor = vec4(mix(bgColor.rgb, c.rgb, dim), c.a);
   }
 `
@@ -468,9 +493,11 @@ function initWebGL(): boolean {
 
   // Get uniform locations
   uResolutionLoc = gl.getUniformLocation(program, 'u_resolution')
+  uDprLoc = gl.getUniformLocation(program, 'u_dpr')
   uBinsLoc = gl.getUniformLocation(program, 'u_bins')
   uShowPeaksLoc = gl.getUniformLocation(program, 'u_showPeaks')
   uLedBarsLoc = gl.getUniformLocation(program, 'u_ledBars')
+  uLedMeterLoc = gl.getUniformLocation(program, 'u_ledMeter')
   uLumiBarsLoc = gl.getUniformLocation(program, 'u_lumiBars')
   uRadialLoc = gl.getUniformLocation(program, 'u_radial')
   uRadialInnerLoc = gl.getUniformLocation(program, 'u_radialInner')
@@ -799,9 +826,11 @@ function drawSpectrum() {
 
   // Set uniforms
   gl.uniform2f(uResolutionLoc, canvas.width, canvas.height)
+  gl.uniform1f(uDprLoc, window.devicePixelRatio || 1)
   gl.uniform1f(uBinsLoc, numBins)
   gl.uniform1i(uShowPeaksLoc, currentShowPeaks.value ? 1 : 0)
   gl.uniform1i(uLedBarsLoc, currentLedBars.value ? 1 : 0)
+  gl.uniform1i(uLedMeterLoc, currentLedShape.value === 'meter' ? 1 : 0)
   gl.uniform1i(uLumiBarsLoc, currentLumiBars.value ? 1 : 0)
   gl.uniform1i(uRadialLoc, currentRadial.value ? 1 : 0)
   gl.uniform1f(uRadialInnerLoc, Math.min(0.9, Math.max(0, currentRadialInnerRadius.value)))
@@ -842,6 +871,7 @@ const {
   showPeaks: currentShowPeaks,
   peakDecay: currentPeakDecay,
   ledBars: currentLedBars,
+  ledShape: currentLedShape,
   lumiBars: currentLumiBars,
   radial: currentRadial,
   radialInnerRadius: currentRadialInnerRadius,

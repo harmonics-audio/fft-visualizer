@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { FFTVisualizer, gradientNames, type GradientName } from '../src'
+import { builtinPresets, type FftPreset, type FftPresetSettings } from './presets'
 
 // FFT Visualizer Controls
 const bands = ref<10 | 20 | 40 | 80>(40)
@@ -25,6 +26,89 @@ const rotation = ref<0 | 90 | 180 | 270>(0)
 function rotate() {
   rotation.value = ((rotation.value + 90) % 360) as 0 | 90 | 180 | 270
 }
+
+// Presets: built-ins ship with the playground; user presets persist in localStorage
+const USER_PRESETS_KEY = 'fft-playground-user-presets'
+const userPresets = ref<FftPreset[]>([])
+const selectedPreset = ref('')
+
+const isUserPreset = computed(() => userPresets.value.some(p => p.name === selectedPreset.value))
+
+function persistUserPresets() {
+  localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(userPresets.value))
+}
+
+function currentSettings(): FftPresetSettings {
+  return {
+    bands: bands.value,
+    showPeaks: showPeaks.value,
+    peakDecay: peakDecay.value,
+    ledBars: ledBars.value,
+    lumiBars: lumiBars.value,
+    radial: radial.value,
+    radialInnerRadius: radialInnerRadius.value,
+    barSpace: barSpace.value,
+    reflexRatio: reflexRatio.value,
+    reflexAlpha: reflexAlpha.value,
+    glow: glow.value,
+    rotation: rotation.value,
+    gradient: gradient.value,
+    gradientDirection: gradientDirection.value,
+    colorMode: colorMode.value,
+    noiseFloor: noiseFloor.value,
+    smoothing: smoothing.value,
+    stereo: stereo.value
+  }
+}
+
+function applyPreset(name: string) {
+  const preset = userPresets.value.find(p => p.name === name) ?? builtinPresets.find(p => p.name === name)
+  if (!preset) return
+  const s = preset.settings
+  bands.value = s.bands
+  showPeaks.value = s.showPeaks
+  peakDecay.value = s.peakDecay
+  ledBars.value = s.ledBars
+  lumiBars.value = s.lumiBars
+  radial.value = s.radial
+  radialInnerRadius.value = s.radialInnerRadius
+  barSpace.value = s.barSpace
+  reflexRatio.value = s.reflexRatio
+  reflexAlpha.value = s.reflexAlpha
+  glow.value = s.glow
+  rotation.value = s.rotation
+  gradient.value = s.gradient as GradientName
+  gradientDirection.value = s.gradientDirection
+  colorMode.value = s.colorMode
+  noiseFloor.value = s.noiseFloor
+  smoothing.value = s.smoothing
+  stereo.value = s.stereo
+}
+
+function savePreset() {
+  const name = window.prompt('Preset name', isUserPreset.value ? selectedPreset.value : '')?.trim()
+  if (!name) return
+  const preset: FftPreset = { name, settings: currentSettings() }
+  const existing = userPresets.value.findIndex(p => p.name === name)
+  if (existing >= 0) userPresets.value[existing] = preset
+  else userPresets.value.push(preset)
+  persistUserPresets()
+  selectedPreset.value = name
+}
+
+function deletePreset() {
+  if (!isUserPreset.value) return
+  userPresets.value = userPresets.value.filter(p => p.name !== selectedPreset.value)
+  persistUserPresets()
+  selectedPreset.value = ''
+}
+
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem(USER_PRESETS_KEY)
+    if (raw) userPresets.value = JSON.parse(raw)
+  } catch { /* corrupt storage — start fresh */ }
+})
 
 // Mode & WebSocket URL
 const mode = ref<'websocket' | 'local'>('local')
@@ -147,6 +231,23 @@ async function onDeviceChange() {
       <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/></svg>
       {{ fullscreenEl === fftContainer ? 'Exit Fullscreen' : 'Fullscreen' }}
     </button>
+
+    <div class="controls presets-row">
+      <div class="control-group">
+        <label>Preset</label>
+        <select v-model="selectedPreset" @change="applyPreset(selectedPreset)">
+          <option value="" disabled>Choose a preset…</option>
+          <optgroup label="Built-in">
+            <option v-for="p in builtinPresets" :key="p.name" :value="p.name">{{ p.name }}</option>
+          </optgroup>
+          <optgroup v-if="userPresets.length" label="Saved">
+            <option v-for="p in userPresets" :key="p.name" :value="p.name">{{ p.name }}</option>
+          </optgroup>
+        </select>
+        <button class="preset-btn" @click="savePreset">Save…</button>
+        <button v-if="isUserPreset" class="preset-btn" @click="deletePreset">Delete</button>
+      </div>
+    </div>
 
     <div class="controls">
       <div class="control-group">
@@ -307,6 +408,25 @@ h1 {
   display: flex;
   gap: 2rem;
   flex-wrap: wrap;
+}
+
+.presets-row {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.preset-btn {
+  background: #222;
+  color: #eee;
+  border: 1px solid #444;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.preset-btn:hover {
+  border-color: #666;
 }
 
 .control-group {

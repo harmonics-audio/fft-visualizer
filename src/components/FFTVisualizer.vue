@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, toRefs } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, toRefs, getCurrentInstance } from 'vue'
 import { useLocalAudio } from '../composables/useLocalAudio'
 import { resolveGradientStops, buildGradientLUT, GRADIENT_LUT_SIZE, type GradientInput } from '../gradients'
 import {
@@ -117,7 +117,28 @@ const emit = defineEmits<{
   connected: []
   disconnected: []
   error: [error: string]
+  // Fired once per processed audio frame with the display bar magnitudes (0-255),
+  // one entry per bar (`bands`). In mono modes `left`/`right` are null; in stereo
+  // `data` is the per-bar max of both channels and `left`/`right` carry each side.
+  // Useful for driving external hardware (LED strips, flip-dot displays, etc.).
+  frame: [data: Uint8Array, left: Uint8Array | null, right: Uint8Array | null]
 }>()
+
+// The frame event fires every audio frame, so skip its work entirely unless a
+// listener is actually attached (keeps the render path allocation-free otherwise).
+const instance = getCurrentInstance()
+function emitFrame() {
+  if (!instance?.vnode.props?.onFrame) return
+  if (currentStereo.value) {
+    const l = displayFftDataLeft.value
+    const r = displayFftDataRight.value
+    const mono = new Uint8Array(l.length)
+    for (let i = 0; i < mono.length; i++) mono[i] = l[i]! > r[i]! ? l[i]! : r[i]!
+    emit('frame', mono, l, r)
+  } else {
+    emit('frame', displayFftData.value, null, null)
+  }
+}
 
 // Diagnostics: only logged when the `debug` prop is set, so consumers get a
 // quiet console by default. Real failures are also surfaced via the `error` event.
@@ -634,6 +655,7 @@ function processMonoData(newData: Uint8Array) {
     displayPeakDataRight.value = displayPeakData.value
   }
   frameCount++
+  emitFrame()
 }
 
 function processLeftData(newData: Uint8Array) {
@@ -643,6 +665,7 @@ function processLeftData(newData: Uint8Array) {
 function processRightData(newData: Uint8Array) {
   processFFTData(newData, smoothedFftDataRight, peakDataRight, fftDataRight, displayFftDataRight, displayPeakDataRight)
   frameCount++
+  emitFrame()
 }
 
 function initBuffers(size: number) {

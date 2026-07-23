@@ -164,7 +164,7 @@ export const builtinPresets: FftPreset[] = [
       gradientDirection: 'horizontal',
       colorMode: 'gradient',
       noiseFloor: 75,
-      smoothing: 0.5,
+      smoothing: 0.9,
       stereo: false
     }
   },

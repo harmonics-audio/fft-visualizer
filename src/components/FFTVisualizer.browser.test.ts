@@ -115,3 +115,29 @@ describe('FFTVisualizer background rendering', () => {
     expect(min).toBe(0)   // transparent gaps between bars still exist
   })
 })
+
+describe('FFTVisualizer frame event', () => {
+  it('emits frame with the bar magnitudes when data is fed', async () => {
+    const frames: Uint8Array[] = []
+    const { viz } = await mountViz({
+      mode: 'external',
+      bands: 80,
+      showStats: false,
+      onFrame: (data: Uint8Array) => frames.push(data)
+    })
+    await waitFrames()
+    viz.value!.feedData(new Uint8Array(80).fill(255))
+
+    expect(frames.length).toBeGreaterThan(0)
+    const last = frames[frames.length - 1]!
+    expect(last).toBeInstanceOf(Uint8Array)
+    expect(last.length).toBe(80)
+    expect(last[40]!).toBeGreaterThan(0) // fed energy shows up in the emitted array
+  })
+
+  it('does not throw when data is fed without a frame listener', async () => {
+    const { viz } = await mountViz({ mode: 'external', bands: 80, showStats: false })
+    await waitFrames()
+    expect(() => viz.value!.feedData(new Uint8Array(80).fill(255))).not.toThrow()
+  })
+})

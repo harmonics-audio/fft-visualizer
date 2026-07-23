@@ -15,7 +15,7 @@
     "test:node": "pnpm --filter fft-visualizer-core test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && changeset publish"
@@ -26,6 +26,7 @@
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
+    "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.7.0",

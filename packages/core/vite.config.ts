@@ -15,6 +15,11 @@ export default defineConfig({
     })
   ],
   build: {
+    // The WASM glue and vite-plugin-top-level-await emit top-level await; keep
+    // the output at esnext so vite-plugin-top-level-await skips esbuild's
+    // down-level pass (which can't lower the TLA-wrapped destructuring to
+    // Vite's default es2020 target).
+    target: 'esnext',
     lib: {
       entry: {
         'fft-visualizer-core': resolve(__dirname, 'src/index.ts'),

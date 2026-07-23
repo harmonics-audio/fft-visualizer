@@ -185,6 +185,30 @@ Gradient helpers are exported for building settings UIs or your own rendering:
 | `connected` | — | Data source became active (WS connected / capture started / external started) |
 | `disconnected` | — | Data source stopped |
 | `error` | `string` | Error message (WS error, capture failure, WebGL init failure) |
+| `frame` | `(data, left, right)` | Emitted once per processed audio frame with the display bar magnitudes (see below) |
+
+### The `frame` event
+
+Fires once per processed audio frame with the same bar values the shader draws —
+useful for driving external hardware (LED strips, flip-dot displays, …) without
+re-implementing the FFT. It's listener-gated, so it costs nothing when unused.
+
+```vue
+<FFTVisualizer mode="local" :bands="28" @frame="onFrame" />
+```
+
+```ts
+// data:  Uint8Array — one 0–255 magnitude per bar (length = `bands`)
+// left/right: per-channel arrays in stereo mode, else null
+//             (in stereo, `data` is the per-bar max of both channels)
+function onFrame(data: Uint8Array, left: Uint8Array | null, right: Uint8Array | null) {
+  const rows = 14                       // e.g. dots per column on a flip-dot panel
+  data.forEach((v, col) => {
+    const lit = Math.round((v / 255) * rows)
+    // light dots 0..lit-1 in column `col`
+  })
+}
+```
 
 ## Exposed methods
 

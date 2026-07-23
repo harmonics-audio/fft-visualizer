@@ -1,6 +1,6 @@
 {
   "name": "vue-fft-visualizer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A high-performance, WebGL-based real-time audio spectrum analyzer and FFT visualizer component for Vue 3 — microphone, tab/system audio, WebSocket, or your own Web Audio data",
   "type": "module",
   "module": "./dist/vue-fft-visualizer.js",

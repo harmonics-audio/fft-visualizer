@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fft-visualizer-core Playground</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #111;
+        color: #eee;
+        min-height: 100vh;
+      }
+
+      .playground { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+      header {
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      h1 { font-size: 1.5rem; font-weight: 600; }
+      .subtitle { font-size: 0.8rem; color: #888; margin-top: 0.25rem; }
+
+      .source-selector { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+      .visualizer-container {
+        height: 300px;
+        margin-bottom: 0.5rem;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .visualizer-container:fullscreen { height: 100%; border-radius: 0; }
+      .visualizer-container canvas { display: block; width: 100%; height: 100%; }
+
+      .controls { display: flex; gap: 2rem; flex-wrap: wrap; }
+      .presets-row { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+
+      .control-group { display: flex; align-items: center; gap: 0.5rem; }
+      .control-group.hidden { display: none; }
+      .control-group label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+
+      select, .text-input, button {
+        background: #222;
+        color: #eee;
+        border: 1px solid #444;
+        padding: 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      .text-input { cursor: text; min-width: 16rem; }
+      select:hover, .text-input:hover, button:hover { border-color: #666; }
+
+      .connect-btn {
+        background: #1a5c2a;
+        border-color: #2a8c3a;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+      }
+      .connect-btn:hover { background: #238636; }
+      .connect-btn.disconnect { background: #6b2020; border-color: #a03030; }
+      .connect-btn.disconnect:hover { background: #8b3030; }
+
+      .fullscreen-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: none;
+        color: #888;
+        border: none;
+        padding: 0.25rem 0;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        font-family: monospace;
+      }
+      .fullscreen-btn:hover { color: #eee; }
+
+      input[type="checkbox"] { width: 1rem; height: 1rem; cursor: pointer; }
+      input[type="range"] { width: 120px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/playground/main.ts"></script>
+  </body>
+</html>

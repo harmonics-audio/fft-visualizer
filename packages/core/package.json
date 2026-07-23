@@ -21,6 +21,9 @@
   "scripts": {
     "build:wasm": "cd wasm && wasm-pack build --target bundler --release",
     "build": "vite build",
+    "dev": "vite",
+    "build:playground": "vite build --mode playground",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

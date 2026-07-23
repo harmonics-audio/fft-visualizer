@@ -39,8 +39,8 @@ venv/
 # Rust
 backend-examples/rust/target/
 backend-examples/rust/Cargo.lock
-wasm/target/
-wasm/Cargo.lock
+packages/core/wasm/target/
+packages/core/wasm/Cargo.lock
 VISUALIZATION-IDEAS.md
 .vercel
 .env*

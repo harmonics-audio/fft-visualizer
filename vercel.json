@@ -1,4 +1,4 @@
 {
   "buildCommand": "pnpm build:playground",
-  "outputDirectory": "dist"
+  "outputDirectory": "packages/vue/dist"
 }

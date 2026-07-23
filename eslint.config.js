@@ -6,10 +6,11 @@ import globals from 'globals'
 export default ts.config(
   {
     ignores: [
-      'dist/**',
-      'wasm/pkg/**',
+      '**/dist/**',
+      '**/wasm/pkg/**',
+      '**/wasm/target/**',
       'backend-examples/**',
-      'node_modules/**'
+      '**/node_modules/**'
     ]
   },
   js.configs.recommended,

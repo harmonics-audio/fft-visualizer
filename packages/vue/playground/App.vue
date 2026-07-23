@@ -177,13 +177,13 @@ async function onDeviceChange() {
             <option value="display">System Audio</option>
           </select>
           <select
-            v-if="audioSource === 'mic' && fftRef?.audioDevices?.length > 1"
+            v-if="audioSource === 'mic' && (fftRef?.audioDevices?.length ?? 0) > 1"
             v-model="selectedDeviceId"
             @change="onDeviceChange"
           >
             <option value="">Default</option>
             <option
-              v-for="device in fftRef.audioDevices"
+              v-for="device in fftRef?.audioDevices ?? []"
               :key="device.deviceId"
               :value="device.deviceId"
             >{{ device.label }}</option>

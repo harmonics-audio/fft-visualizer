@@ -15,9 +15,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "declaration": true,
-    "declarationDir": "./dist"
+    "paths": {
+      "fft-visualizer-core": ["../core/src/index.ts"],
+      "fft-visualizer-core/wasm": ["../core/src/wasm.ts"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.vue", "playground/**/*.ts", "playground/**/*.vue"],
   "exclude": ["node_modules", "dist"]
 }

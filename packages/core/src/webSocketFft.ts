@@ -1,6 +1,5 @@
-import { ref, onUnmounted, type Ref } from 'vue'
-import { pcmToChannels } from '../pcm'
-import type { FftProcessor } from '../../wasm/pkg/fft_wasm'
+import { pcmToChannels } from './pcm'
+import type { FftProcessor } from '../wasm/pkg/fft_wasm'
 
 export interface WebSocketFftOptions {
   /** FFT window size (default: 2048) */
@@ -19,26 +18,37 @@ export interface WebSocketFftOptions {
   overlap?: number
   /** Auto-reconnect with exponential backoff after an unexpected close (default: false) */
   autoReconnect?: boolean
+  /** Called with fresh mono/left/right FFT magnitudes (0-255 per bin) each frame */
+  onData?: (mono: Uint8Array, left: Uint8Array, right: Uint8Array) => void
+  /** Called whenever the connection state changes */
+  onConnectionChange?: (connected: boolean) => void
 }
 
-export interface WebSocketFftReturn {
-  /** Reactive FFT magnitude data (0-255 per bin) — mono mix */
-  fftData: Ref<Uint8Array>
-  /** Reactive FFT magnitude data for left channel (0-255 per bin) */
-  fftDataLeft: Ref<Uint8Array>
-  /** Reactive FFT magnitude data for right channel (0-255 per bin) */
-  fftDataRight: Ref<Uint8Array>
+export interface WebSocketFftEngine {
+  /** Latest mono-mix FFT magnitude data (0-255 per bin) */
+  readonly fftData: Uint8Array
+  /** Latest left-channel FFT magnitude data (0-255 per bin) */
+  readonly fftDataLeft: Uint8Array
+  /** Latest right-channel FFT magnitude data (0-255 per bin) */
+  readonly fftDataRight: Uint8Array
   /** Whether the WebSocket is connected */
-  isConnected: Ref<boolean>
+  readonly isConnected: boolean
   /** Connect to a WebSocket URL streaming PCM audio */
   connect: (url: string) => void
   /** Disconnect from the WebSocket */
   disconnect: () => void
   /** Process a Float32Array of PCM samples directly (for manual feeding) */
   processSamples: (samples: Float32Array) => void
+  /** Tear down: disconnect and free WASM processors */
+  free: () => void
 }
 
-export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftReturn {
+/**
+ * Framework-agnostic client-side FFT of a PCM WebSocket stream. Computes mono +
+ * left + right spectra via the Rust WASM processor and surfaces them through
+ * getters plus an `onData` callback — Vue's `useWebSocketFft` wraps this into refs.
+ */
+export function createWebSocketFft(options?: WebSocketFftOptions): WebSocketFftEngine {
   const fftSize = options?.fftSize ?? 2048
   const bins = options?.bins ?? 80
   const startFreq = options?.startFreq ?? 100
@@ -46,19 +56,21 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   const overlap = Math.min(0.75, Math.max(0, options?.overlap ?? 0))
   const hopSize = Math.max(1, Math.round(fftSize * (1 - overlap)))
   const autoReconnect = options?.autoReconnect ?? false
+  const onData = options?.onData
+  const onConnectionChange = options?.onConnectionChange
 
-  const fftData = ref<Uint8Array>(new Uint8Array(bins))
-  const fftDataLeft = ref<Uint8Array>(new Uint8Array(bins))
-  const fftDataRight = ref<Uint8Array>(new Uint8Array(bins))
-  const isConnected = ref(false)
+  let fftData: Uint8Array = new Uint8Array(bins)
+  let fftDataLeft: Uint8Array = new Uint8Array(bins)
+  let fftDataRight: Uint8Array = new Uint8Array(bins)
+  let isConnected = false
 
   let processor: FftProcessor | null = null
   let processorLeft: FftProcessor | null = null
   let processorRight: FftProcessor | null = null
   let websocket: WebSocket | null = null
   let sampleRate: number | null = null
-  let configuredBitDepth: number = 16
-  let configuredChannels: number = 2
+  let configuredBitDepth = 16
+  let configuredChannels = 2
 
   // Auto-reconnect state (exponential backoff)
   let reconnectAttempts = 0
@@ -67,6 +79,12 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
   let reconnecting = false
   const RECONNECT_BASE_MS = 1000
   const RECONNECT_MAX_MS = 30000
+
+  function setConnected(value: boolean) {
+    if (isConnected === value) return
+    isConnected = value
+    onConnectionChange?.(value)
+  }
 
   function scheduleReconnect() {
     if (!autoReconnect || !lastUrl) return
@@ -93,7 +111,7 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
     if (processorRight) { processorRight.free(); processorRight = null }
     sampleRate = rate
 
-    const wasmModule = await import('../../wasm/pkg/fft_wasm')
+    const wasmModule = await import('../wasm/pkg/fft_wasm')
     const { FftProcessor } = wasmModule
     processor = new FftProcessor(fftSize, bins, startFreq, endFreq, sampleRate)
     processorLeft = new FftProcessor(fftSize, bins, startFreq, endFreq, sampleRate)
@@ -114,9 +132,10 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
       accumulationBuffer = accumulationBuffer.slice(hopSize)
       accumulationBufferLeft = accumulationBufferLeft.slice(hopSize)
       accumulationBufferRight = accumulationBufferRight.slice(hopSize)
-      fftData.value = processor.process(frameMono)
-      fftDataLeft.value = processorLeft.process(frameLeft)
-      fftDataRight.value = processorRight.process(frameRight)
+      fftData = processor.process(frameMono)
+      fftDataLeft = processorLeft.process(frameLeft)
+      fftDataRight = processorRight.process(frameRight)
+      onData?.(fftData, fftDataLeft, fftDataRight)
     }
   }
 
@@ -124,21 +143,10 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
     if (!processor) return
 
     // Append to accumulation buffer (mono only for backward compat)
-    const newBuffer = new Float32Array(accumulationBuffer.length + samples.length)
-    newBuffer.set(accumulationBuffer)
-    newBuffer.set(samples, accumulationBuffer.length)
-    accumulationBuffer = newBuffer
-
+    accumulationBuffer = appendToBuffer(accumulationBuffer, samples)
     // Also accumulate into L/R (same data when fed mono)
-    const newLeft = new Float32Array(accumulationBufferLeft.length + samples.length)
-    newLeft.set(accumulationBufferLeft)
-    newLeft.set(samples, accumulationBufferLeft.length)
-    accumulationBufferLeft = newLeft
-
-    const newRight = new Float32Array(accumulationBufferRight.length + samples.length)
-    newRight.set(accumulationBufferRight)
-    newRight.set(samples, accumulationBufferRight.length)
-    accumulationBufferRight = newRight
+    accumulationBufferLeft = appendToBuffer(accumulationBufferLeft, samples)
+    accumulationBufferRight = appendToBuffer(accumulationBufferRight, samples)
 
     processAccumulatedSamples()
   }
@@ -159,7 +167,7 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
     websocket.binaryType = 'arraybuffer'
 
     websocket.onopen = () => {
-      isConnected.value = true
+      setConnected(true)
       reconnectAttempts = 0
     }
 
@@ -192,11 +200,11 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
     }
 
     websocket.onerror = () => {
-      isConnected.value = false
+      setConnected(false)
     }
 
     websocket.onclose = () => {
-      isConnected.value = false
+      setConnected(false)
       websocket = null
       // Only fires for unexpected closes — disconnect() nulls this handler first
       scheduleReconnect()
@@ -216,20 +224,27 @@ export function useWebSocketFft(options?: WebSocketFftOptions): WebSocketFftRetu
       websocket.close()
       websocket = null
     }
-    isConnected.value = false
+    setConnected(false)
     accumulationBuffer = new Float32Array(0)
     accumulationBufferLeft = new Float32Array(0)
     accumulationBufferRight = new Float32Array(0)
   }
 
-  function cleanup() {
+  function free() {
     disconnect()
     if (processor) { processor.free(); processor = null }
     if (processorLeft) { processorLeft.free(); processorLeft = null }
     if (processorRight) { processorRight.free(); processorRight = null }
   }
 
-  onUnmounted(cleanup)
-
-  return { fftData, fftDataLeft, fftDataRight, isConnected, connect, disconnect, processSamples }
+  return {
+    get fftData() { return fftData },
+    get fftDataLeft() { return fftDataLeft },
+    get fftDataRight() { return fftDataRight },
+    get isConnected() { return isConnected },
+    connect,
+    disconnect,
+    processSamples,
+    free
+  }
 }

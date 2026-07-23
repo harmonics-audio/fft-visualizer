@@ -1,364 +1,86 @@
-# vue-fft-visualizer
+# FFT Visualizer
 
 A high-performance, WebGL-based **real-time audio spectrum analyzer** and FFT
-visualizer component for Vue 3 — visualize the microphone, tab/system audio, a
-WebSocket stream, or your own Web Audio data.
+visualizer. The entire visual — bars, LED segments, radial layout, gradient,
+glow, reflection — is drawn by a single fragment shader in one GPU draw call, so
+it stays smooth even at 120 fps with 80 bands in stereo.
 
-The entire visual — bars, LED segments, radial layout, gradient, glow, reflection —
-is drawn by a single fragment shader in one GPU draw call, so it stays smooth even
-at 120 fps with 80 bands in stereo.
+This is a monorepo. The rendering engine lives in a framework-agnostic core
+package; framework integrations are thin wrappers around it.
 
-<!-- 🔗 Live demo: https://<your-vercel-url>  (fill in after deploying the playground) -->
-<!-- ![FFT Visualizer demo](docs/demo.gif)   (add a recorded GIF here) -->
+## Packages
 
-## Highlights
+| Package | Description | |
+|---------|-------------|--|
+| [`fft-visualizer-core`](./packages/core) | Framework-agnostic WebGL renderer + audio/WebSocket engines as a vanilla TypeScript class. Zero framework dependencies. | `packages/core` |
+| [`fft-visualizer-vue`](./packages/vue) | Vue 3 component wrapping the core. One peer dependency: Vue 3. | `packages/vue` |
 
-- **WebGL fragment-shader rendering** — the whole spectrum is one draw call; no per-bar canvas ops
-- **Three data sources** — capture audio locally (mic or tab/system), stream pre-computed FFT over WebSocket, or feed your own data via props
-- **In-browser FFT** — optional Rust/WASM FFT processor (lazy-loaded only when you capture audio locally)
-- **Rich visual modes** — LED segments (two styles), radial/circular, stereo, mirrored reflection, glow, rotation, per-level or per-axis coloring
-- **Flexible gradients** — 10 built-in presets or custom stops in any CSS color format
-- **One peer dependency** — just Vue 3; rendering uses native WebGL
-- **SSR-safe** — all browser access is deferred to `onMounted`; works with Nuxt via `<ClientOnly>`
+The core owns all rendering, audio capture (mic / tab / system via the Web Audio
+API + a lazy-loaded Rust/WASM FFT), WebSocket streaming, and the WebGL draw. Each
+framework package is a thin adapter that maps its own reactivity/props onto the
+core's imperative API.
 
-## Installation
+## Which package do I want?
 
-```bash
-pnpm add vue-fft-visualizer
-# or: npm install vue-fft-visualizer / yarn add vue-fft-visualizer
-```
+- **Using Vue?** Install [`fft-visualizer-vue`](./packages/vue) — see its README
+  for props, modes, and examples.
+- **Vanilla JS/TS, or another framework?** Use
+  [`fft-visualizer-core`](./packages/core) directly:
 
-## Quick start
+  ```ts
+  import { FFTVisualizer } from 'fft-visualizer-core'
 
-The fastest way to see something is **local mode** — capture the microphone and
-visualize it entirely in the browser, no backend required:
-
-```vue
-<script setup>
-import { FFTVisualizer } from 'vue-fft-visualizer'
-</script>
-
-<template>
-  <div class="viz">
-    <FFTVisualizer mode="local" :bands="40" gradient="aurora" />
-  </div>
-</template>
-
-<style>
-/* The component fills its container — give it a height */
-.viz { width: 100%; height: 240px; }
-</style>
-```
-
-The browser will prompt for microphone permission on mount. To capture tab or
-system audio instead of the mic, set `audio-source="display"`.
+  const viz = new FFTVisualizer(canvas, { mode: 'local', bands: 40, gradient: 'aurora' })
+  // ...later
+  viz.destroy()
+  ```
 
 ## Data modes
 
-The component has one job — render a spectrum — and three ways to get the data,
-selected with the `mode` prop:
+The renderer has one job — draw a spectrum — and three ways to get the data:
 
 | Mode | How data arrives | Use when |
 |------|------------------|----------|
 | `local` | Captures mic or display audio and computes the FFT in-browser (Rust/WASM) | You want a zero-backend, client-side visualizer |
-| `websocket` *(default)* | Connects to `websocketUrl` and reads **pre-computed** FFT frames | A server/device already produces FFT data (e.g. a Raspberry Pi) |
-| `external` | You pass FFT magnitudes via the `data` / `dataLeft` / `dataRight` props | You have your own audio pipeline (Web Audio, another analyser, etc.) |
+| `websocket` *(default)* | Connects to a URL and reads **pre-computed** FFT frames | A server/device already produces FFT data (e.g. a Raspberry Pi) |
+| `external` | You feed FFT magnitudes in yourself | You have your own audio pipeline |
 
-### Local mode
+Reference servers that stream FFT frames over WebSocket (Python, Node.js, Rust)
+are in [`backend-examples/`](./backend-examples).
 
-```vue
-<FFTVisualizer mode="local" audio-source="mic" :bands="80" />
+## Repository layout
+
 ```
-
-### WebSocket mode
-
-```vue
-<FFTVisualizer mode="websocket" websocket-url="ws://localhost:3001/fft" :bands="40" />
+packages/
+  core/                 # fft-visualizer-core — vanilla renderer + engines
+    src/                #   FFTVisualizer class, localAudio, webSocketFft, gradients, processing
+    wasm/               #   Rust FFT processor (wasm-pack, bundler target; pkg/ is committed)
+  vue/                  # fft-visualizer-vue — Vue 3 wrapper + playground demo
+    src/                #   FFTVisualizer.vue, composables
+    playground/         #   dev/demo app (deployed to Vercel)
+backend-examples/       # reference WebSocket FFT servers (python / nodejs / rust)
 ```
-
-The server streams a small config message then binary FFT frames — see
-[WebSocket protocol](#websocket-protocol). Reference servers for Python, Node.js
-and Rust are in [`backend-examples/`](./backend-examples).
-
-### External mode
-
-Pass a `Uint8Array` of magnitudes (0–255); update it and the visual follows.
-For stereo, pass `dataLeft` and `dataRight` instead of `data`.
-
-```vue
-<script setup>
-import { ref } from 'vue'
-import { FFTVisualizer } from 'vue-fft-visualizer'
-
-const data = ref(new Uint8Array(80))
-// ...fill `data.value` from your own analyser each frame (assign a new array,
-// or call the exposed feedData() method — see notes below)
-</script>
-
-<template>
-  <FFTVisualizer mode="external" :data="data" :bands="40" :stereo="false" />
-</template>
-```
-
-> **Note:** the `data` prop is watched by reference. If you mutate the *same*
-> `Uint8Array` in place each frame, Vue won't detect the change — either assign a
-> fresh array, or use the component's imperative feed (see [Exposed](#exposed-methods)).
-
-## Props
-
-### Data source
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `mode` | `'websocket' \| 'local' \| 'external'` | `'websocket'` | Where FFT data comes from |
-| `websocketUrl` | `string` | — | WebSocket URL (used when `mode="websocket"`) |
-| `data` | `Uint8Array` | — | External FFT magnitudes, mono (used when `mode="external"`) |
-| `dataLeft` / `dataRight` | `Uint8Array` | — | External FFT magnitudes per channel (stereo external mode) |
-| `audioSource` | `'mic' \| 'display'` | `'mic'` | Local capture source (used when `mode="local"`) |
-| `audioDeviceId` | `string` | — | Specific input device for local mic capture |
-| `autoReconnect` | `boolean` | `false` | Reconnect the WebSocket with exponential backoff (1s→30s) after an unexpected drop |
-
-### Data processing
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `bands` | `10 \| 20 \| 40 \| 80` | `80` | Number of frequency bands displayed (server bins are aggregated down to this) |
-| `noiseFloor` | `number` | `0` | Cut magnitudes below this threshold (0–255) |
-| `smoothing` | `number` | `0` | Temporal smoothing (0 = none, 0.9 = heavy) |
-| `showPeaks` | `boolean` | `true` | Show falling peak indicators |
-| `peakDecay` | `number` | `0.997` | Peak fall speed (0.99 = slow, 0.9 = fast) |
-| `stereo` | `boolean` | `false` | Stereo mode: left channel top, right channel bottom (mono data is mirrored to both) |
-
-### Appearance
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `ledBars` | `boolean` | `false` | LED segment effect |
-| `ledShape` | `'segment' \| 'meter'` | `'segment'` | `segment` = fixed-pixel gap lines (identical at every resolution); `meter` = short, wide segments sized from bar width, like a classic LED meter |
-| `lumiBars` | `boolean` | `false` | Full-height bars whose brightness follows the level |
-| `radial` | `boolean` | `false` | Circular spectrum: angle = frequency, radius = level |
-| `radialInnerRadius` | `number` | `0.35` | Radial: inner hole radius as a fraction of outer radius (0–0.9) |
-| `barSpace` | `number` | `0.25` | Gap between bars as a fraction of bar width (0–0.9) |
-| `reflexRatio` | `number` | `0` | Mirrored reflection (0 = off). Linear mono: fraction of height (max 0.7). Radial: > 0 mirrors bars inward inside the inner circle |
-| `reflexAlpha` | `number` | `0.25` | Reflection brightness (0–1) |
-| `glow` | `number` | `0` | Glow above the bar tops (0 = off, 1 = max) |
-| `rotation` | `0 \| 90 \| 180 \| 270` | `0` | Rotate the whole visual clockwise, in degrees |
-| `gradient` | `GradientName \| GradientStop[]` | `'classic'` | Bar colors: a preset name or custom stops |
-| `gradientDirection` | `'vertical' \| 'horizontal'` | `'vertical'` | Gradient axis |
-| `colorMode` | `'gradient' \| 'bar-level'` | `'gradient'` | `bar-level` colors each whole bar by its current level instead of by the gradient axis |
-| `background` | `string` | `'#0a0a0a'` | Background behind and between the bars. Any CSS color, including `'transparent'` or `rgba(…)` for a see-through canvas that blends into your page (opaque vs. transparent is fixed at mount) |
-| `showStats` | `boolean` | `true` | Show the small connection/fps overlay (also overridable via the `stats` slot) |
-| `debug` | `boolean` | `false` | Log connection/config diagnostics to the console (quiet by default) |
-
-## Gradients
-
-Bar colors are rasterized into a 256×1 lookup texture, so any CSS color and native
-gradient interpolation work. Pass a preset name or an array of custom stops:
-
-```vue
-<!-- Preset -->
-<FFTVisualizer mode="local" gradient="sunset" />
-
-<!-- Custom stops (any CSS color format) -->
-<FFTVisualizer
-  mode="local"
-  :gradient="[
-    { stop: 0, color: '#001233' },
-    { stop: 0.5, color: 'rgb(15, 155, 142)' },
-    { stop: 1, color: 'hsl(280, 95%, 75%)' }
-  ]"
-/>
-```
-
-Built-in presets (exported as `gradientPresets` / `gradientNames`):
-`classic`, `rainbow`, `blue`, `prism`, `orangered`, `steelblue`, `sunset`,
-`aurora`, `dusk`, `mono`.
-
-Gradient helpers are exported for building settings UIs or your own rendering:
-`resolveGradientStops`, `buildGradientLUT`, `GRADIENT_LUT_SIZE`, and the
-`GradientStop` / `GradientName` / `GradientInput` types.
-
-## Events
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `connected` | — | Data source became active (WS connected / capture started / external started) |
-| `disconnected` | — | Data source stopped |
-| `error` | `string` | Error message (WS error, capture failure, WebGL init failure) |
-| `frame` | `(data, left, right)` | Emitted once per processed audio frame with the display bar magnitudes (see below) |
-
-### The `frame` event
-
-Fires once per processed audio frame with the same bar values the shader draws —
-useful for driving external hardware (LED strips, flip-dot displays, …) without
-re-implementing the FFT. It's listener-gated, so it costs nothing when unused.
-
-```vue
-<FFTVisualizer mode="local" :bands="28" @frame="onFrame" />
-```
-
-```ts
-// data:  Uint8Array — one 0–255 magnitude per bar (length = `bands`)
-// left/right: per-channel arrays in stereo mode, else null
-//             (in stereo, `data` is the per-bar max of both channels)
-function onFrame(data: Uint8Array, left: Uint8Array | null, right: Uint8Array | null) {
-  const rows = 14                       // e.g. dots per column on a flip-dot panel
-  data.forEach((v, col) => {
-    const lit = Math.round((v / 255) * rows)
-    // light dots 0..lit-1 in column `col`
-  })
-}
-```
-
-## Exposed methods
-
-Access via a template ref:
-
-```vue
-<script setup>
-import { ref } from 'vue'
-const viz = ref()
-
-// Manual connection control
-viz.value.connect()
-viz.value.disconnect()
-viz.value.isConnected          // Ref<boolean>
-
-// Feed FFT frames imperatively (mode="external") — copies the data, so it works
-// even when you reuse one buffer each frame (unlike the reference-watched `data` prop)
-viz.value.feedData(mono)                 // Uint8Array
-viz.value.feedData(mono, left, right)    // stereo
-
-// Local-audio device management
-await viz.value.getAudioDevices()   // Promise<AudioDevice[]> (prompts for mic permission)
-viz.value.audioDevices              // Ref<AudioDevice[]>
-viz.value.activeAudioDeviceId       // Ref<string | undefined>
-</script>
-
-<template>
-  <FFTVisualizer ref="viz" mode="local" />
-</template>
-```
-
-### Slots
-
-| Slot | Props | Description |
-|------|-------|-------------|
-| `stats` | `{ connected: boolean, bands: number, fps: number }` | Replace the default corner overlay with your own (only rendered when `showStats` is true) |
-
-## Composables
-
-The data pipelines are also available standalone, if you want to drive your own
-rendering or combine them with `mode="external"`.
-
-### `useLocalAudio(options?)`
-
-Captures mic or display audio and runs the WASM FFT.
-
-```ts
-const {
-  fftData,        // Ref<Uint8Array> — magnitudes 0–255
-  isActive, sourceType, devices, activeDeviceId,
-  getDevices,     // () => Promise<AudioDevice[]>
-  start,          // (deviceId?) => Promise<void>  — microphone
-  startDisplay,   // () => Promise<void>           — tab/system audio
-  stop
-} = useLocalAudio({ fftSize: 2048, bins: 80, startFreq: 100, endFreq: 18000 })
-```
-
-### `useWebSocketFft(options?)`
-
-Connects to a WebSocket that streams **raw PCM** and computes the FFT in-browser
-via WASM (distinct from the component's `websocket` mode, which expects
-pre-computed FFT). Feed its `fftData` into the component with `mode="external"`.
-
-```ts
-const {
-  fftData, fftDataLeft, fftDataRight, isConnected,
-  connect,        // (url) => void
-  disconnect,
-  processSamples  // (Float32Array) => void — feed PCM manually
-} = useWebSocketFft({ fftSize: 2048, bins: 80, overlap: 0.5 })
-```
-
-The raw WASM FFT processor is also exported from `vue-fft-visualizer/wasm` if you
-want to use it directly.
-
-## WebSocket protocol
-
-`mode="websocket"` expects a server that sends **pre-computed** FFT frames:
-
-**1. Config message (JSON), once on connect:**
-
-```json
-{ "type": "config", "mode": "fft", "bins": 80, "fps": 120 }
-```
-
-**2. Binary FFT frames, continuously:**
-
-- One `uint8` (0–255) per frequency bin — `bins` bytes per frame
-- 0 = silence, 255 = maximum amplitude
-- Typically 100 Hz – 18 kHz, exponentially spaced
-
-For best results the server should: capture at 48 kHz+, apply a Hann/Hamming
-window, compute a 1024–2048-point FFT, map to exponentially-spaced bands, apply
-A-weighting, convert to dB, normalize to 0–255, and stream at 60–120 fps.
-
-## Backend examples
-
-Reference servers that capture system audio, compute FFT, and stream it:
-
-- **[Python](./backend-examples/python/)** — pyalsaaudio + numpy (incl. a Raspberry Pi variant)
-- **[Node.js](./backend-examples/nodejs/)** — node-audiorecorder + fft.js
-- **[Rust](./backend-examples/rust/)** — cpal + rustfft
-
-## SSR / Nuxt
-
-The component touches `window`, `navigator`, and WebGL only inside `onMounted` and
-event handlers, and the gradient rasterizer guards against a missing DOM — so it is
-safe to import in SSR/Nuxt apps. Because it renders nothing meaningful on the
-server, wrap it in `<ClientOnly>`:
-
-```vue
-<ClientOnly>
-  <FFTVisualizer mode="local" />
-</ClientOnly>
-```
-
-## Why this vs. a canvas visualizer?
-
-Most spectrum visualizers (e.g. audioMotion-analyzer) draw to a 2D canvas. This
-one renders the entire frame — every bar, LED gap, gradient, glow and reflection —
-in a **single WebGL fragment shader / draw call**, which keeps it cheap at high
-band counts and frame rates. It also ships a **WebSocket remote-FFT protocol** with
-reference servers, so the FFT can run on a separate device (a Raspberry Pi, a
-media server) and the browser only draws — a case canvas visualizers don't cover.
-
-## Browser support
-
-Requires WebGL (all modern browsers): Chrome 56+, Firefox 51+, Safari 15+, Edge 79+.
-Local capture additionally needs `getUserMedia` / `getDisplayMedia`.
 
 ## Development
 
-```bash
-pnpm install       # install deps
-pnpm dev           # playground dev server
-pnpm build         # build the library (vue-tsc + vite)
-pnpm build:wasm    # rebuild the Rust/WASM FFT processor (needs wasm-pack)
-pnpm typecheck     # type-check only
-pnpm lint          # ESLint
-pnpm test          # all tests (node + real-browser WebGL via Playwright)
-pnpm test:node     # fast unit tests only (no browser)
-```
-
-The browser tests render the component in headless Chromium and read back canvas
-pixels (e.g. to verify transparency). They need the browser installed once:
+Uses [pnpm](https://pnpm.io) workspaces.
 
 ```bash
-pnpm exec playwright install chromium
+pnpm install            # install all workspace deps
+
+pnpm dev                # run the Vue playground demo
+pnpm build              # build every package (pnpm -r build)
+pnpm typecheck          # typecheck every package
+pnpm test               # run all tests (core: node, vue: browser via Playwright)
+pnpm lint:fix           # ESLint with auto-fix
+
+pnpm build:wasm         # rebuild the Rust WASM FFT (requires the Rust toolchain + wasm-pack)
+pnpm build:playground   # build the demo app (what Vercel deploys)
 ```
+
+The committed `packages/core/wasm/pkg/` artifacts mean a normal build needs no
+Rust toolchain — only `pnpm build:wasm` does.
 
 ## License
 
-MIT © Wouter Vernaillen
+[MIT](./LICENSE) © Wouter Vernaillen

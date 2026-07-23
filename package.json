@@ -1,46 +1,28 @@
 {
-  "name": "vue-fft-visualizer",
+  "name": "fft-visualizer-monorepo",
   "version": "0.4.0",
-  "description": "A high-performance, WebGL-based real-time audio spectrum analyzer and FFT visualizer component for Vue 3 — microphone, tab/system audio, WebSocket, or your own Web Audio data",
+  "private": true,
   "type": "module",
-  "module": "./dist/vue-fft-visualizer.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/vue-fft-visualizer.js"
-    },
-    "./wasm": {
-      "types": "./dist/wasm.d.ts",
-      "import": "./dist/fft-wasm.js"
-    },
-    "./style.css": "./dist/vue-fft-visualizer.css"
-  },
-  "style": "./dist/vue-fft-visualizer.css",
-  "files": [
-    "dist"
-  ],
+  "description": "Monorepo for the FFT Visualizer family: a framework-agnostic WebGL spectrum-analyzer core and its framework wrappers",
   "scripts": {
-    "dev": "vite",
-    "build:wasm": "cd wasm && wasm-pack build --target bundler --release",
-    "build": "vue-tsc && vite build",
-    "build:playground": "vue-tsc && vite build --mode playground",
-    "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
-    "test:node": "vitest run --project node",
-    "test:watch": "vitest",
+    "dev": "pnpm --filter fft-visualizer-vue dev",
+    "build": "pnpm -r build",
+    "build:wasm": "pnpm --filter fft-visualizer-core build:wasm",
+    "build:playground": "pnpm --filter fft-visualizer-core build && pnpm --filter fft-visualizer-vue build:playground",
+    "preview": "pnpm --filter fft-visualizer-vue preview",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:node": "pnpm --filter fft-visualizer-core test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "prepack": "pnpm build:wasm && pnpm build",
-    "release": "release-it"
-  },
-  "peerDependencies": {
-    "vue": "^3.4.0"
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.7",
     "@eslint/js": "^10.0.1",
-    "@release-it/keep-a-changelog": "^7.1.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
@@ -48,7 +30,7 @@
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.7.0",
     "playwright": "^1.61.1",
-    "release-it": "^20.2.1",
+    "rollup": "^4.62.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.1.5",
@@ -60,36 +42,5 @@
     "vue": "^3.5.40",
     "vue-tsc": "^3.3.7"
   },
-  "keywords": [
-    "vue",
-    "vue3",
-    "audio-visualizer",
-    "audio-spectrum",
-    "spectrum-analyzer",
-    "spectrum",
-    "music-visualizer",
-    "audio-visualization",
-    "web-audio",
-    "fft",
-    "frequency",
-    "microphone",
-    "real-time",
-    "webgl",
-    "visualizer",
-    "analyzer",
-    "audio-visualiser",
-    "spectrum-analyser",
-    "visualiser"
-  ],
-  "author": "Wouter Vernaillen",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/harmonics-audio/vue-fft-visualizer.git"
-  },
-  "bugs": {
-    "url": "https://github.com/harmonics-audio/vue-fft-visualizer/issues"
-  },
-  "homepage": "https://github.com/harmonics-audio/vue-fft-visualizer#readme",
   "packageManager": "pnpm@11.16.0"
 }

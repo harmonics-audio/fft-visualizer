@@ -1,0 +1,71 @@
+{
+  "name": "fft-visualizer-vue",
+  "version": "0.4.0",
+  "description": "A high-performance, WebGL-based real-time audio spectrum analyzer and FFT visualizer component for Vue 3 — microphone, tab/system audio, WebSocket, or your own Web Audio data",
+  "type": "module",
+  "module": "./dist/fft-visualizer-vue.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/fft-visualizer-vue.js"
+    },
+    "./wasm": {
+      "types": "./dist/wasm.d.ts",
+      "import": "./dist/fft-wasm.js"
+    },
+    "./style.css": "./dist/fft-visualizer-vue.css"
+  },
+  "style": "./dist/fft-visualizer-vue.css",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "build:playground": "vue-tsc && vite build --mode playground",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "pnpm build"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "dependencies": {
+    "fft-visualizer-core": "workspace:^"
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "audio-visualizer",
+    "audio-spectrum",
+    "spectrum-analyzer",
+    "spectrum",
+    "music-visualizer",
+    "audio-visualization",
+    "web-audio",
+    "fft",
+    "frequency",
+    "microphone",
+    "real-time",
+    "webgl",
+    "visualizer",
+    "analyzer",
+    "audio-visualiser",
+    "spectrum-analyser",
+    "visualiser"
+  ],
+  "author": "Wouter Vernaillen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmonics-audio/fft-visualizer.git",
+    "directory": "packages/vue"
+  },
+  "bugs": {
+    "url": "https://github.com/harmonics-audio/fft-visualizer/issues"
+  },
+  "homepage": "https://github.com/harmonics-audio/fft-visualizer#readme"
+}

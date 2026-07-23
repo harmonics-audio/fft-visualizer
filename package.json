@@ -18,7 +18,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && changeset publish"
+    "release": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && changeset publish && bash scripts/create-github-releases.sh"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",

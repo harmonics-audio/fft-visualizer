@@ -1,7 +1,7 @@
 {
   "name": "fft-server-nodejs",
   "version": "1.0.0",
-  "description": "FFT WebSocket server for vue-fft-visualizer (uses ffmpeg)",
+  "description": "FFT WebSocket server for fft-visualizer (uses ffmpeg)",
   "main": "fft-server.js",
   "scripts": {
     "start": "node fft-server.js --device \":1\""

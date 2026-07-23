@@ -1,4 +1,4 @@
-# vue-fft-visualizer - Development Guidelines
+# fft-visualizer - Development Guidelines
 
 ## Git Workflow
 

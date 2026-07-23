@@ -1,0 +1,61 @@
+{
+  "name": "fft-visualizer-core",
+  "version": "0.4.0",
+  "description": "Framework-agnostic, WebGL-based real-time audio spectrum analyzer / FFT visualizer — a vanilla TypeScript class. Powers fft-visualizer-vue.",
+  "type": "module",
+  "module": "./dist/fft-visualizer-core.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/fft-visualizer-core.js"
+    },
+    "./wasm": {
+      "types": "./dist/wasm.d.ts",
+      "import": "./dist/fft-wasm.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build:wasm": "cd wasm && wasm-pack build --target bundler --release",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "pnpm build"
+  },
+  "keywords": [
+    "audio-visualizer",
+    "audio-spectrum",
+    "spectrum-analyzer",
+    "spectrum",
+    "music-visualizer",
+    "audio-visualization",
+    "web-audio",
+    "fft",
+    "frequency",
+    "microphone",
+    "real-time",
+    "webgl",
+    "visualizer",
+    "analyzer",
+    "vanilla",
+    "typescript",
+    "audio-visualiser",
+    "spectrum-analyser",
+    "visualiser"
+  ],
+  "author": "Wouter Vernaillen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harmonics-audio/fft-visualizer.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/harmonics-audio/fft-visualizer/issues"
+  },
+  "homepage": "https://github.com/harmonics-audio/fft-visualizer#readme"
+}

@@ -1,5 +1,4 @@
-import { ref, type Ref } from 'vue'
-import type { FftProcessor } from '../../wasm/pkg/fft_wasm'
+import type { FftProcessor } from '../wasm/pkg/fft_wasm'
 
 export type AudioSourceType = 'mic' | 'display'
 
@@ -19,19 +18,23 @@ export interface LocalAudioOptions {
   endFreq?: number
   /** Audio input device ID (default: system default) */
   deviceId?: string
+  /** Called with fresh FFT magnitudes (0-255 per bin) on every animation frame */
+  onData?: (data: Uint8Array) => void
+  /** Called whenever isActive / devices / activeDeviceId / sourceType changes */
+  onStateChange?: () => void
 }
 
-export interface LocalAudioReturn {
-  /** Reactive FFT magnitude data (0-255 per bin) */
-  fftData: Ref<Uint8Array>
+export interface LocalAudioEngine {
+  /** Latest FFT magnitude data (0-255 per bin) */
+  readonly fftData: Uint8Array
   /** Whether local audio capture is active */
-  isActive: Ref<boolean>
+  readonly isActive: boolean
   /** Current audio source type */
-  sourceType: Ref<AudioSourceType>
+  readonly sourceType: AudioSourceType
   /** Available audio input devices (populated after getDevices or start) */
-  devices: Ref<AudioDevice[]>
+  readonly devices: AudioDevice[]
   /** Currently active device ID */
-  activeDeviceId: Ref<string | undefined>
+  readonly activeDeviceId: string | undefined
   /** Enumerate available audio input devices (requests mic permission if needed) */
   getDevices: () => Promise<AudioDevice[]>
   /** Start audio capture from microphone */
@@ -42,17 +45,25 @@ export interface LocalAudioReturn {
   stop: () => void
 }
 
-export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
+/**
+ * Framework-agnostic microphone / system-audio capture that computes FFT
+ * magnitudes in-browser via the Rust WASM processor. State is surfaced through
+ * getters plus `onData` / `onStateChange` callbacks — Vue's `useLocalAudio`
+ * wraps this into refs.
+ */
+export function createLocalAudio(options?: LocalAudioOptions): LocalAudioEngine {
   const fftSize = options?.fftSize ?? 2048
   const bins = options?.bins ?? 80
   const startFreq = options?.startFreq ?? 100
   const endFreq = options?.endFreq ?? 18000
+  const onData = options?.onData
+  const onStateChange = options?.onStateChange
 
-  const fftData = ref<Uint8Array>(new Uint8Array(bins))
-  const isActive = ref(false)
-  const sourceType = ref<AudioSourceType>('mic')
-  const devices = ref<AudioDevice[]>([])
-  const activeDeviceId = ref<string | undefined>(options?.deviceId)
+  let fftData: Uint8Array = new Uint8Array(bins)
+  let isActive = false
+  let sourceType: AudioSourceType = 'mic'
+  let devices: AudioDevice[] = []
+  let activeDeviceId: string | undefined = options?.deviceId
 
   let audioContext: AudioContext | null = null
   let mediaStream: MediaStream | null = null
@@ -61,6 +72,10 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
   let animationFrameId: number | null = null
   let processor: FftProcessor | null = null
   let timeDomainBuffer: Float32Array<ArrayBuffer> | null = null
+
+  function notify() {
+    onStateChange?.()
+  }
 
   async function enumerateAudioDevices(): Promise<AudioDevice[]> {
     const allDevices = await navigator.mediaDevices.enumerateDevices()
@@ -74,7 +89,8 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
     const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true })
     const result = await enumerateAudioDevices()
     tempStream.getTracks().forEach(track => track.stop())
-    devices.value = result
+    devices = result
+    notify()
     return result
   }
 
@@ -83,14 +99,15 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
 
     analyserNode.getFloatTimeDomainData(timeDomainBuffer)
     const result = processor.process(timeDomainBuffer)
-    fftData.value = result
+    fftData = result
+    onData?.(result)
 
     animationFrameId = requestAnimationFrame(tick)
   }
 
   async function initProcessing(stream: MediaStream) {
     // Lazy-load WASM module
-    const wasmModule = await import('../../wasm/pkg/fft_wasm')
+    const wasmModule = await import('../wasm/pkg/fft_wasm')
     const { FftProcessor } = wasmModule
 
     mediaStream = stream
@@ -111,14 +128,15 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
     )
 
     timeDomainBuffer = new Float32Array(fftSize)
-    isActive.value = true
+    isActive = true
+    notify()
     animationFrameId = requestAnimationFrame(tick)
   }
 
   async function start(deviceId?: string) {
-    if (isActive.value) stop()
+    if (isActive) stop()
 
-    const selectedDeviceId = deviceId ?? activeDeviceId.value
+    const selectedDeviceId = deviceId ?? activeDeviceId
 
     const audioConstraints: MediaTrackConstraints = {
       echoCancellation: false,
@@ -133,17 +151,18 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
 
     // Track which device we're actually using
     const audioTrack = stream.getAudioTracks()[0]
-    activeDeviceId.value = audioTrack?.getSettings().deviceId
-    sourceType.value = 'mic'
+    activeDeviceId = audioTrack?.getSettings().deviceId
+    sourceType = 'mic'
 
     // Refresh device list (now we have permission, labels will be populated)
-    devices.value = await enumerateAudioDevices()
+    devices = await enumerateAudioDevices()
+    notify()
 
     await initProcessing(stream)
   }
 
   async function startDisplay() {
-    if (isActive.value) stop()
+    if (isActive) stop()
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
       audio: true,
@@ -158,8 +177,9 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
       stop()
     })
 
-    activeDeviceId.value = undefined
-    sourceType.value = 'display'
+    activeDeviceId = undefined
+    sourceType = 'display'
+    notify()
 
     await initProcessing(stream)
   }
@@ -192,9 +212,20 @@ export function useLocalAudio(options?: LocalAudioOptions): LocalAudioReturn {
 
     analyserNode = null
     timeDomainBuffer = null
-    isActive.value = false
-    fftData.value = new Uint8Array(bins)
+    isActive = false
+    fftData = new Uint8Array(bins)
+    notify()
   }
 
-  return { fftData, isActive, sourceType, devices, activeDeviceId, getDevices, start, startDisplay, stop }
+  return {
+    get fftData() { return fftData },
+    get isActive() { return isActive },
+    get sourceType() { return sourceType },
+    get devices() { return devices },
+    get activeDeviceId() { return activeDeviceId },
+    getDevices,
+    start,
+    startDisplay,
+    stop
+  }
 }

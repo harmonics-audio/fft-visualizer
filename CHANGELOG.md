@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `frame` event: emitted once per processed audio frame with the display bar
+  magnitudes (`Uint8Array`, 0–255, one per band). In mono modes `left`/`right` are
+  `null`; in stereo `data` is the per-bar max of both channels and `left`/`right`
+  carry each side. Useful for driving external hardware (LED strips, flip-dot
+  displays, etc.). Listener-gated, so it costs nothing when unused.
+
 ## [0.3.0] - 2026-07-19
 
 ### Added

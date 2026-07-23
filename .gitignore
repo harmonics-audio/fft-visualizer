@@ -11,6 +11,13 @@ dist/
 *.swp
 *.swo
 
+# AI/agent tooling (local only)
+.claude/
+.cursor/
+.kiro/
+.mcp.json
+opencode.jsonc
+
 # OS
 .DS_Store
 Thumbs.db

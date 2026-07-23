@@ -32,22 +32,25 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "prepack": "pnpm build:wasm && pnpm build"
+    "prepack": "pnpm build:wasm && pnpm build",
+    "release": "release-it"
   },
   "peerDependencies": {
     "vue": "^3.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@release-it/keep-a-changelog": "^7.1.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
     "eslint": "^10.7.0",
-    "eslint-plugin-vue": "^10.9.2",
+    "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.7.0",
     "playwright": "^1.61.1",
+    "release-it": "^20.2.1",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.64.0",
+    "typescript-eslint": "^8.65.0",
     "vite": "^8.1.5",
     "vite-plugin-dts": "^5.0.3",
     "vite-plugin-top-level-await": "^1.6.0",
@@ -88,5 +91,5 @@
     "url": "https://github.com/harmonics-audio/vue-fft-visualizer/issues"
   },
   "homepage": "https://github.com/harmonics-audio/vue-fft-visualizer#readme",
-  "packageManager": "pnpm@11.15.0"
+  "packageManager": "pnpm@11.16.0"
 }

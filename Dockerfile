@@ -27,6 +27,8 @@ FROM nginxinc/nginx-unprivileged:alpine
 COPY --from=build /app/packages/vue/dist /usr/share/nginx/html
 
 EXPOSE 8080
-# busybox wget (alpine) — Coolify needs an in-image HEALTHCHECK to report health
+# busybox wget (alpine) — Coolify needs an in-image HEALTHCHECK to report health.
+# 127.0.0.1, not localhost: wget tries the ::1 record first and nginx's `listen 8080`
+# is IPv4-only, so localhost fails with ECONNREFUSED and the container never goes healthy.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:8080/ >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1

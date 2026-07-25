@@ -38,3 +38,62 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # Build the playground image (demo.fftvisualizer.com), smoke-test that it boots
+  # and serves, then push to the self-hosted registry. Only on main, after CI passes.
+  build-push-demo:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: registry.apps.vernaillen.dev/demo-fftvisualizer-com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.apps.vernaillen.dev
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      # load: true keeps the image local so we can smoke-test it before pushing
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test (boot the image and hit it on :8080)
+        run: |
+          docker run -d --name smoke -p 8080:8080 "${IMAGE}:${{ github.sha }}"
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:8080/; then ok=1; break; fi
+            sleep 1
+          done
+          echo "----- container logs -----"; docker logs smoke || true
+          docker rm -f smoke >/dev/null 2>&1 || true
+          [ "$ok" = "1" ] || { echo "::error::Smoke test failed — image did not serve on :8080"; exit 1; }
+
+      - name: Push image
+        run: |
+          docker push "${IMAGE}:latest"
+          docker push "${IMAGE}:${{ github.sha }}"
+
+      # Coolify pulls :latest but won't redeploy on its own — hit its deploy API so
+      # the new image goes live. COOLIFY_DEPLOY_URL is the full deploy endpoint incl.
+      # ?uuid=<resource-uuid>; must be reachable from GitHub-hosted runners.
+      - name: Trigger Coolify redeploy
+        run: |
+          curl --fail-with-body -sS "${{ secrets.COOLIFY_DEPLOY_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"

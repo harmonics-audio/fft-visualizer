@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+.changeset
+.vercel
+.env*
+*.log
+*.tgz
+.claude
+.cursor
+# Reference servers aren't part of the playground build; the Rust target dir is huge
+backend-examples
+packages/core/wasm/target
+Dockerfile
+.dockerignore

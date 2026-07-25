@@ -47,6 +47,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE: registry.apps.vernaillen.dev/demo-fftvisualizer-com
+      # Not a secret: the endpoint is useless without COOLIFY_TOKEN. Keeping it here
+      # means REGISTRY_USERNAME / REGISTRY_PASSWORD / COOLIFY_TOKEN can all live as
+      # harmonics-audio org secrets, with nothing to configure per repo.
+      COOLIFY_DEPLOY_URL: https://coolify.apps.vernaillen.dev/api/v1/deploy?uuid=uy17autwbm5dgmadwwdtpoj4&force=false
 
     steps:
       - uses: actions/checkout@v4
@@ -91,9 +95,8 @@ jobs:
           docker push "${IMAGE}:${{ github.sha }}"
 
       # Coolify pulls :latest but won't redeploy on its own — hit its deploy API so
-      # the new image goes live. COOLIFY_DEPLOY_URL is the full deploy endpoint incl.
-      # ?uuid=<resource-uuid>; must be reachable from GitHub-hosted runners.
+      # the new image goes live. The endpoint must be reachable from GitHub-hosted runners.
       - name: Trigger Coolify redeploy
         run: |
-          curl --fail-with-body -sS "${{ secrets.COOLIFY_DEPLOY_URL }}" \
+          curl --fail-with-body -sS "$COOLIFY_DEPLOY_URL" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"

@@ -88,7 +88,7 @@ importers:
 
   packages/react:
     dependencies:
-      fft-visualizer-core:
+      '@fft-visualizer/core':
         specifier: workspace:^
         version: link:../core
       react:
@@ -97,12 +97,27 @@ importers:
 
   packages/vue:
     dependencies:
-      fft-visualizer-core:
+      '@fft-visualizer/core':
         specifier: workspace:^
         version: link:../core
       vue:
         specifier: ^3.4.0
         version: 3.5.40(typescript@5.9.3)
+
+  playground/core:
+    dependencies:
+      '@fft-visualizer/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@fft-visualizer/playground-shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  playground/shared:
+    dependencies:
+      '@fft-visualizer/core':
+        specifier: workspace:*
+        version: link:../../packages/core
 
 packages:
 

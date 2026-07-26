@@ -1,0 +1,18 @@
+{
+  "name": "@fft-visualizer/playground-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Preset library, control-panel descriptors and stylesheet shared by every playground app. Never published.",
+  "exports": {
+    "./presets": "./presets.ts",
+    "./controls": "./controls.ts",
+    "./playground.css": "./playground.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fft-visualizer/core": "workspace:*"
+  }
+}

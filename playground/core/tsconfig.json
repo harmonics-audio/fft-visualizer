@@ -1,25 +1,25 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@fft-visualizer/core": ["../core/src/index.ts"],
-      "@fft-visualizer/core/wasm": ["../core/src/wasm.ts"]
+      "@fft-visualizer/core": ["../../packages/core/src/index.ts"],
+      "@fft-visualizer/core/wasm": ["../../packages/core/src/wasm.ts"],
+      "@fft-visualizer/playground-shared/presets": ["../shared/presets.ts"],
+      "@fft-visualizer/playground-shared/controls": ["../shared/controls.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "playground/**/*.ts", "playground/**/*.vue"],
+  "include": ["main.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,5 @@
 import { ref, onUnmounted, type Ref } from 'vue'
-import { createWebSocketFft, type WebSocketFftOptions } from 'fft-visualizer-core'
+import { createWebSocketFft, type WebSocketFftOptions } from '@fft-visualizer/core'
 
 export type { WebSocketFftOptions }
 

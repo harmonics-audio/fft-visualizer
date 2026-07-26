@@ -1,0 +1,157 @@
+/*
+ * The one playground stylesheet, shared by the core, Vue, React and Nuxt apps.
+ * Previously this existed as three drifting copies: inline <style> blocks in
+ * packages/core/index.html and packages/vue/index.html plus a <style scoped>
+ * block in the Vue App.vue.
+ *
+ * Two class names were unified in the process: the text field is .text-input
+ * (was .ws-input in Vue) and the disconnect state is .connect-btn.disconnect
+ * (was a separate .disconnect-btn).
+ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #111;
+  color: #eee;
+  min-height: 100vh;
+}
+
+.playground { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+/* ---- Header + data source ---- */
+
+header {
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+h1 { font-size: 1.5rem; font-weight: 600; }
+.subtitle { font-size: 0.8rem; color: #888; margin-top: 0.25rem; }
+
+.source-selector { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ---- Visualizer ---- */
+
+.visualizer-container {
+  height: 300px;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.visualizer-container:fullscreen { height: 100%; border-radius: 0; }
+
+/* The core playground mounts a bare <canvas>; the framework wrappers mount a
+   .fft-visualizer wrapper that already sizes itself to 100%. */
+.visualizer-container > canvas { display: block; width: 100%; height: 100%; }
+
+.fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  color: #888;
+  border: none;
+  padding: 0.25rem 0;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.fullscreen-btn:hover { color: #eee; }
+
+/* ---- Presets ---- */
+
+.presets-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #333;
+}
+
+/* ---- Control sections ---- */
+
+.control-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1.25rem;
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+}
+
+.control-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.control-group { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.control-group label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+
+/* Ranges stack their label above the slider so long labels like
+   "Reflex Alpha: 0.25" don't overflow a narrow section column. */
+.control-group.range,
+.control-group.range label {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.control-group.select label { width: 100%; justify-content: space-between; }
+
+/* ---- Inputs ---- */
+
+select, .text-input, button {
+  background: #222;
+  color: #eee;
+  border: 1px solid #444;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.text-input { cursor: text; min-width: 16rem; }
+
+/* The "save preset as" field sits in a crowded row and needs far less room
+   than a wss:// URL. */
+.text-input.preset-name { min-width: 9rem; }
+
+select:hover, .text-input:hover, button:hover { border-color: #666; }
+
+.connect-btn {
+  background: #1a5c2a;
+  border-color: #2a8c3a;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+}
+
+.connect-btn:hover { background: #238636; }
+.connect-btn.disconnect { background: #6b2020; border-color: #a03030; }
+.connect-btn.disconnect:hover { background: #8b3030; }
+
+input[type="checkbox"] { width: 1rem; height: 1rem; cursor: pointer; }
+input[type="range"] { width: 100%; cursor: pointer; }
+
+.hidden { display: none; }

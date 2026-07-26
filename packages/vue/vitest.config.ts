@@ -10,8 +10,8 @@ export default defineConfig({
   plugins: [vue(), wasm(), topLevelAwait()],
   resolve: {
     alias: {
-      'fft-visualizer-core': new URL('../core/src/index.ts', import.meta.url).pathname,
-      'fft-visualizer-core/wasm': new URL('../core/src/wasm.ts', import.meta.url).pathname
+      '@fft-visualizer/core': new URL('../core/src/index.ts', import.meta.url).pathname,
+      '@fft-visualizer/core/wasm': new URL('../core/src/wasm.ts', import.meta.url).pathname
     }
   },
   test: {

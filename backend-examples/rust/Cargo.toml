@@ -2,7 +2,7 @@
 name = "fft-server"
 version = "0.1.0"
 edition = "2021"
-description = "FFT WebSocket server for vue-fft-visualizer"
+description = "FFT WebSocket server for @fft-visualizer/core"
 
 [dependencies]
 cpal = "0.15"

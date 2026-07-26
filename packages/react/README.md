@@ -1,4 +1,4 @@
-# fft-visualizer-react
+# @fft-visualizer/react
 
 A high-performance, WebGL-based **real-time audio spectrum analyzer** and FFT
 visualizer component for React — visualize the microphone, tab/system audio, a
@@ -23,15 +23,15 @@ at 120 fps with 80 bands in stereo.
 ## Installation
 
 ```bash
-pnpm add fft-visualizer-react
-# or: npm install fft-visualizer-react / yarn add fft-visualizer-react
+pnpm add @fft-visualizer/react
+# or: npm install @fft-visualizer/react / yarn add @fft-visualizer/react
 ```
 
 Import the stylesheet once, anywhere in your app (it sizes the canvas and styles
 the stats overlay):
 
 ```ts
-import 'fft-visualizer-react/style.css'
+import '@fft-visualizer/react/style.css'
 ```
 
 ## Quick start
@@ -40,8 +40,8 @@ The fastest way to see something is **local mode** — capture the microphone an
 visualize it entirely in the browser, no backend required:
 
 ```tsx
-import { FFTVisualizer } from 'fft-visualizer-react'
-import 'fft-visualizer-react/style.css'
+import { FFTVisualizer } from '@fft-visualizer/react'
+import '@fft-visualizer/react/style.css'
 
 export function Viz() {
   // The component fills its container — give it a height
@@ -64,7 +64,7 @@ it belongs in a client component:
 ```tsx
 'use client'
 
-import { FFTVisualizer } from 'fft-visualizer-react'
+import { FFTVisualizer } from '@fft-visualizer/react'
 ```
 
 ## Data modes
@@ -112,7 +112,7 @@ Pass a `Uint8Array` of magnitudes (0–255). For stereo, pass `dataLeft` and
 ## Props
 
 Props are the core visualizer's options, so anything valid for
-[`fft-visualizer-core`](https://www.npmjs.com/package/fft-visualizer-core) works
+[`@fft-visualizer/core`](https://www.npmjs.com/package/@fft-visualizer/core) works
 here. Unset props keep the core's default.
 
 ### Data source
@@ -237,7 +237,7 @@ Attach a ref for manual control:
 
 ```tsx
 import { useRef } from 'react'
-import { FFTVisualizer, type FFTVisualizerHandle } from 'fft-visualizer-react'
+import { FFTVisualizer, type FFTVisualizerHandle } from '@fft-visualizer/react'
 
 const viz = useRef<FFTVisualizerHandle>(null)
 
@@ -265,13 +265,13 @@ The data pipelines are framework-agnostic and live in the core package — use t
 directly (with `mode="external"`, or to drive your own rendering):
 
 ```ts
-import { createLocalAudio, createWebSocketFft } from 'fft-visualizer-core'
+import { createLocalAudio, createWebSocketFft } from '@fft-visualizer/core'
 ```
 
 `createLocalAudio` captures mic/display audio and runs the WASM FFT;
 `createWebSocketFft` computes the FFT in-browser from a **raw PCM** WebSocket
 stream. Both are callback-driven, which keeps per-frame data out of React state.
-The raw WASM processor is also re-exported from `fft-visualizer-react/wasm`.
+The raw WASM processor is also re-exported from `@fft-visualizer/react/wasm`.
 
 ## WebSocket protocol
 
@@ -291,8 +291,8 @@ and on the [docs site](https://fftvisualizer.com).
 
 | Package | For |
 |---------|-----|
-| [`fft-visualizer-core`](https://www.npmjs.com/package/fft-visualizer-core) | Vanilla JS/TS, or any other framework |
-| [`fft-visualizer-vue`](https://www.npmjs.com/package/fft-visualizer-vue) | Vue 3 |
+| [`@fft-visualizer/core`](https://www.npmjs.com/package/@fft-visualizer/core) | Vanilla JS/TS, or any other framework |
+| [`@fft-visualizer/vue`](https://www.npmjs.com/package/@fft-visualizer/vue) | Vue 3 |
 
 ## License
 

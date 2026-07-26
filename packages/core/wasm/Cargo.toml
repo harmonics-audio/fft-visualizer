@@ -2,7 +2,7 @@
 name = "fft-wasm"
 version = "0.1.0"
 edition = "2021"
-description = "WASM FFT processor for vue-fft-visualizer"
+description = "WASM FFT processor for @fft-visualizer/core"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -30,4 +30,4 @@ export type { GradientStop, GradientName, GradientInput } from './gradients'
 // top-level await and eagerly loading ~289 kB of WASM. The class loads WASM
 // lazily (dynamic import) only for local/websocket-FFT modes. Consumers who
 // want the raw processor import it from the dedicated subpath:
-//   import { FftProcessor } from 'fft-visualizer-core/wasm'
+//   import { FftProcessor } from '@fft-visualizer/core/wasm'

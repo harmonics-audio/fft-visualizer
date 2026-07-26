@@ -16,8 +16,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "fft-visualizer-core": ["../core/src/index.ts"],
-      "fft-visualizer-core/wasm": ["../core/src/wasm.ts"]
+      "@fft-visualizer/core": ["../core/src/index.ts"],
+      "@fft-visualizer/core/wasm": ["../core/src/wasm.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

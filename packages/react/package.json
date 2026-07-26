@@ -1,5 +1,5 @@
 {
-  "name": "fft-visualizer-react",
+  "name": "@fft-visualizer/react",
   "version": "0.4.0",
   "description": "A high-performance, WebGL-based real-time audio spectrum analyzer and FFT visualizer component for React — microphone, tab/system audio, WebSocket, or your own Web Audio data",
   "type": "module",
@@ -31,7 +31,7 @@
     "react": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "fft-visualizer-core": "workspace:^"
+    "@fft-visualizer/core": "workspace:^"
   },
   "keywords": [
     "react",

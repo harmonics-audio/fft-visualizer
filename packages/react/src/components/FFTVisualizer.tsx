@@ -11,7 +11,7 @@ import {
   FFTVisualizer as FFTVisualizerCore,
   type FFTVisualizerOptions,
   type AudioDevice
-} from 'fft-visualizer-core'
+} from '@fft-visualizer/core'
 import './FFTVisualizer.css'
 
 /**

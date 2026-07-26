@@ -1,4 +1,4 @@
-# fft-visualizer-core
+# @fft-visualizer/core
 
 A high-performance, WebGL-based **real-time audio spectrum analyzer** and FFT
 visualizer as a framework-agnostic **vanilla TypeScript class** — visualize the
@@ -8,7 +8,7 @@ The entire visual — bars, LED segments, radial layout, gradient, glow, reflect
 is drawn by a single fragment shader in one GPU draw call, so it stays smooth even
 at 120 fps with 80 bands in stereo.
 
-This is the engine that powers [`fft-visualizer-vue`](https://www.npmjs.com/package/fft-visualizer-vue).
+This is the engine that powers [`@fft-visualizer/vue`](https://www.npmjs.com/package/@fft-visualizer/vue).
 Use this package directly for vanilla JS/TS, or to build a wrapper for any other
 framework.
 
@@ -24,8 +24,8 @@ framework.
 ## Installation
 
 ```bash
-pnpm add fft-visualizer-core
-# or: npm install fft-visualizer-core / yarn add fft-visualizer-core
+pnpm add @fft-visualizer/core
+# or: npm install @fft-visualizer/core / yarn add @fft-visualizer/core
 ```
 
 ## Quick start
@@ -34,7 +34,7 @@ The fastest way to see something is **local mode** — capture the microphone an
 visualize it entirely in the browser, no backend required:
 
 ```ts
-import { FFTVisualizer } from 'fft-visualizer-core'
+import { FFTVisualizer } from '@fft-visualizer/core'
 
 const canvas = document.querySelector('canvas')!
 const viz = new FFTVisualizer(canvas, {
@@ -177,7 +177,7 @@ Bar colors are rasterized into a lookup texture, so any CSS color and native
 gradient interpolation work. Pass a preset name or an array of custom stops:
 
 ```ts
-import { FFTVisualizer, gradientNames } from 'fft-visualizer-core'
+import { FFTVisualizer, gradientNames } from '@fft-visualizer/core'
 
 // 10 presets: classic, rainbow, blue, prism, orangered, steelblue, sunset, aurora, dusk, mono
 new FFTVisualizer(canvas, { mode: 'local', gradient: 'sunset' })
@@ -208,7 +208,7 @@ The raw Rust/WASM FFT processor is exported from a **dedicated subpath** so the
 main entry never pulls WASM in eagerly — import it only when you need it:
 
 ```ts
-import { FftProcessor } from 'fft-visualizer-core/wasm'
+import { FftProcessor } from '@fft-visualizer/core/wasm'
 ```
 
 ## License

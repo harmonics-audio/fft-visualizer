@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { createLocalAudio, type LocalAudioOptions, type AudioDevice, type AudioSourceType } from 'fft-visualizer-core'
+import { createLocalAudio, type LocalAudioOptions, type AudioDevice, type AudioSourceType } from '@fft-visualizer/core'
 
 export type { LocalAudioOptions, AudioDevice, AudioSourceType }
 

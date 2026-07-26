@@ -15,7 +15,7 @@ COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm i --frozen-lockfile
 
-# Builds fft-visualizer-core, then the Vue playground into packages/vue/dist.
+# Builds @fft-visualizer/core, then the Vue playground into packages/vue/dist.
 # wasm/pkg is committed, so no Rust/wasm-pack toolchain is needed here.
 RUN pnpm build:playground
 

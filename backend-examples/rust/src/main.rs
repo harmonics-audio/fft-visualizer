@@ -33,7 +33,7 @@ const FFT_END_FREQ: f32 = 18000.0;
 
 #[derive(Parser, Debug)]
 #[command(name = "fft-server")]
-#[command(about = "FFT WebSocket server for vue-fft-visualizer")]
+#[command(about = "FFT WebSocket server for @fft-visualizer/core")]
 struct Args {
     #[arg(short, long, default_value_t = 3001)]
     port: u16,

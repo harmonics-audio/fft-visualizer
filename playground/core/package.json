@@ -1,0 +1,16 @@
+{
+  "name": "@fft-visualizer/playground-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vanilla-TS playground for @fft-visualizer/core. Built into the switcher site at /core/. Never published.",
+  "scripts": {
+    "dev": "vite",
+    "build:site": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fft-visualizer/core": "workspace:*",
+    "@fft-visualizer/playground-shared": "workspace:*"
+  }
+}

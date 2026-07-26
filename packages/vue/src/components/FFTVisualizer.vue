@@ -5,7 +5,7 @@ import {
   type FFTVisualizerOptions,
   type AudioDevice,
   type GradientInput
-} from 'fft-visualizer-core'
+} from '@fft-visualizer/core'
 
 /**
  * FFT Visualizer — thin Vue wrapper around the framework-agnostic

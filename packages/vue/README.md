@@ -1,4 +1,4 @@
-# fft-visualizer-vue
+# @fft-visualizer/vue
 
 A high-performance, WebGL-based **real-time audio spectrum analyzer** and FFT
 visualizer component for Vue 3 — visualize the microphone, tab/system audio, a
@@ -24,8 +24,8 @@ at 120 fps with 80 bands in stereo.
 ## Installation
 
 ```bash
-pnpm add fft-visualizer-vue
-# or: npm install fft-visualizer-vue / yarn add fft-visualizer-vue
+pnpm add @fft-visualizer/vue
+# or: npm install @fft-visualizer/vue / yarn add @fft-visualizer/vue
 ```
 
 ## Quick start
@@ -35,7 +35,7 @@ visualize it entirely in the browser, no backend required:
 
 ```vue
 <script setup>
-import { FFTVisualizer } from 'fft-visualizer-vue'
+import { FFTVisualizer } from '@fft-visualizer/vue'
 </script>
 
 <template>
@@ -88,7 +88,7 @@ For stereo, pass `dataLeft` and `dataRight` instead of `data`.
 ```vue
 <script setup>
 import { ref } from 'vue'
-import { FFTVisualizer } from 'fft-visualizer-vue'
+import { FFTVisualizer } from '@fft-visualizer/vue'
 
 const data = ref(new Uint8Array(80))
 // ...fill `data.value` from your own analyser each frame (assign a new array,
@@ -281,7 +281,7 @@ const {
 } = useWebSocketFft({ fftSize: 2048, bins: 80, overlap: 0.5 })
 ```
 
-The raw WASM FFT processor is also exported from `fft-visualizer-vue/wasm` if you
+The raw WASM FFT processor is also exported from `@fft-visualizer/vue/wasm` if you
 want to use it directly.
 
 ## WebSocket protocol

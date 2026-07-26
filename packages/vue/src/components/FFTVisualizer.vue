@@ -51,7 +51,7 @@ const props = withDefaults(defineProps<{
   radialInnerRadius?: number
   /** Gap between bars as a fraction of bar width (0 = none, max 0.9) */
   barSpace?: number
-  /** Mirrored reflection (0 = off). Linear mono: fraction of canvas height (max 0.7). Radial: any value > 0 mirrors the bars inward inside the inner circle */
+  /** Mirrored reflection (0 = off; max 0.7). Linear mono: fraction of the canvas height given to the reflection. Radial: how far the mirror reaches inward, as a fraction of the bars' radial length */
   reflexRatio?: number
   /** Brightness of the reflection (0-1) */
   reflexAlpha?: number

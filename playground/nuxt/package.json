@@ -1,0 +1,20 @@
+{
+  "name": "@fft-visualizer/playground-nuxt",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Nuxt 4 playground for @fft-visualizer/vue. Prerendered into the switcher site at /nuxt/. Never published.",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build:site": "nuxt generate",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@fft-visualizer/playground-shared": "workspace:*",
+    "@fft-visualizer/playground-vue": "workspace:*",
+    "@fft-visualizer/vue": "workspace:*"
+  },
+  "devDependencies": {
+    "nuxt": "^4.5.0"
+  }
+}

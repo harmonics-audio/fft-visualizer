@@ -8,7 +8,7 @@ The entire visual — bars, LED segments, radial layout, gradient, glow, reflect
 is drawn by a single fragment shader in one GPU draw call, so it stays smooth even
 at 120 fps with 80 bands in stereo.
 
-<!-- 🔗 Live demo: https://<your-vercel-url>  (fill in after deploying the playground) -->
+🔗 Live demo: https://demo.fftvisualizer.com/vue/ · Docs: https://fftvisualizer.com
 <!-- ![FFT Visualizer demo](docs/demo.gif)   (add a recorded GIF here) -->
 
 ## Highlights
@@ -139,7 +139,7 @@ const data = ref(new Uint8Array(80))
 | `radial` | `boolean` | `false` | Circular spectrum: angle = frequency, radius = level |
 | `radialInnerRadius` | `number` | `0.35` | Radial: inner hole radius as a fraction of outer radius (0–0.9) |
 | `barSpace` | `number` | `0.25` | Gap between bars as a fraction of bar width (0–0.9) |
-| `reflexRatio` | `number` | `0` | Mirrored reflection (0 = off). Linear mono: fraction of height (max 0.7). Radial: > 0 mirrors bars inward inside the inner circle |
+| `reflexRatio` | `number` | `0` | Mirrored reflection (0 = off; max 0.7). Linear mono: fraction of the canvas height given to the reflection. Radial: how far the mirror reaches inward, as a fraction of the bars’ radial length |
 | `reflexAlpha` | `number` | `0.25` | Reflection brightness (0–1) |
 | `glow` | `number` | `0` | Glow above the bar tops (0 = off, 1 = max) |
 | `rotation` | `0 \| 90 \| 180 \| 270` | `0` | Rotate the whole visual clockwise, in degrees |

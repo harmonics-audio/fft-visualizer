@@ -5,6 +5,18 @@ backend-examples/nodejs/node_modules/
 # Build output
 dist/
 
+# Browser-mode vitest output (failure screenshots, not committed baselines)
+.vitest-attachments/
+**/__screenshots__/
+
+# Nuxt (generated types + prerendered output). `dist` has no trailing slash
+# because `nuxt build` leaves it as a *symlink* to .output/public, which `dist/`
+# would not match — and its target is an absolute path, so it must never be committed.
+.nuxt/
+.output/
+.nitro/
+playground/nuxt/dist
+
 # IDE
 .vscode/
 .idea/

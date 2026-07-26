@@ -1,0 +1,24 @@
+{
+  "name": "@fft-visualizer/playground-vue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vue 3 playground for @fft-visualizer/vue. Built into the switcher site at /vue/. Never published.",
+  "exports": {
+    "./App.vue": "./App.vue"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build:site": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@fft-visualizer/playground-shared": "workspace:*",
+    "@fft-visualizer/vue": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vue": "^3.5.40",
+    "vue-tsc": "^3.3.7"
+  }
+}

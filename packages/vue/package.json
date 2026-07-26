@@ -21,10 +21,7 @@
     "dist"
   ],
   "scripts": {
-    "dev": "vite",
     "build": "vue-tsc && vite build",
-    "build:playground": "vue-tsc && vite build --mode playground",
-    "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -35,6 +32,11 @@
   },
   "dependencies": {
     "@fft-visualizer/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vue": "^3.5.40",
+    "vue-tsc": "^3.3.7"
   },
   "keywords": [
     "vue",

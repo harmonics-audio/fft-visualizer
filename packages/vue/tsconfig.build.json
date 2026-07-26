@@ -4,5 +4,5 @@
     "paths": {}
   },
   "include": ["src/**/*.ts", "src/**/*.vue"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "playground"]
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
 }

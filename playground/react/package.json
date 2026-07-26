@@ -1,0 +1,22 @@
+{
+  "name": "@fft-visualizer/playground-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "React playground for @fft-visualizer/react. Built into the switcher site at /react/. Never published.",
+  "scripts": {
+    "dev": "vite",
+    "build:site": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fft-visualizer/playground-shared": "workspace:*",
+    "@fft-visualizer/react": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}

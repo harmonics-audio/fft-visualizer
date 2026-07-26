@@ -43,6 +43,22 @@ function centerPixel(canvas: HTMLCanvasElement) {
   return [px[i]!, px[i + 1]!, px[i + 2]!, px[i + 3]!]
 }
 
+// On a transparent background the reflection is dimmed via alpha (255 *
+// reflexAlpha), so a strictly-partial alpha identifies reflection pixels.
+function dimPixelCount(canvas: HTMLCanvasElement) {
+  const { px } = readPixels(canvas)
+  let n = 0
+  for (let i = 3; i < px.length; i += 4) if (px[i]! > 10 && px[i]! < 200) n++
+  return n
+}
+
+function bottomRowAlphaMax(canvas: HTMLCanvasElement) {
+  const { px, w } = readPixels(canvas)
+  let max = 0
+  for (let x = 0; x < w; x++) max = Math.max(max, px[x * 4 + 3]!)
+  return max
+}
+
 function alphaValues(canvas: HTMLCanvasElement) {
   const { px } = readPixels(canvas)
   let min = 255
@@ -113,6 +129,48 @@ describe('FFTVisualizer background rendering', () => {
     const { min, max } = alphaValues(canvas)
     expect(max).toBe(255) // opaque bar pixels exist
     expect(min).toBe(0)   // transparent gaps between bars still exist
+  })
+})
+
+// reflexRatio only reads correctly off real pixels, and a GLSL compile failure is
+// logged rather than thrown, so these are the only tests that can catch either.
+describe('FFTVisualizer reflection', () => {
+  const reflex = {
+    mode: 'external' as const,
+    background: 'transparent',
+    showStats: false,
+    showPeaks: false,
+    barSpace: 0,
+    reflexAlpha: 0.5
+  }
+
+  it('mirrors a full-height bar all the way to the canvas bottom', async () => {
+    const { canvas, viz } = await mountViz({ ...reflex, reflexRatio: 0.6 })
+    await waitFrames()
+    viz.value!.feedData(new Uint8Array(80).fill(255))
+    await waitFrames()
+    expect(bottomRowAlphaMax(canvas)).toBeGreaterThan(10)
+  })
+
+  it('paints more reflection as reflexRatio grows', async () => {
+    const shallow = await mountViz({ ...reflex, reflexRatio: 0.2 })
+    const deep = await mountViz({ ...reflex, reflexRatio: 0.6 })
+    await waitFrames()
+    shallow.viz.value!.feedData(new Uint8Array(80).fill(255))
+    deep.viz.value!.feedData(new Uint8Array(80).fill(255))
+    await waitFrames()
+    expect(dimPixelCount(deep.canvas)).toBeGreaterThan(dimPixelCount(shallow.canvas) * 1.5)
+  })
+
+  it('scales how far the radial mirror reaches inward', async () => {
+    const radial = { ...reflex, radial: true, radialInnerRadius: 0.6 }
+    const shallow = await mountViz({ ...radial, reflexRatio: 0.3 })
+    const deep = await mountViz({ ...radial, reflexRatio: 0.7 })
+    await waitFrames()
+    shallow.viz.value!.feedData(new Uint8Array(80).fill(255))
+    deep.viz.value!.feedData(new Uint8Array(80).fill(255))
+    await waitFrames()
+    expect(dimPixelCount(deep.canvas)).toBeGreaterThan(dimPixelCount(shallow.canvas) * 1.2)
   })
 })
 

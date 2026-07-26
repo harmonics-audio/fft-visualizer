@@ -59,7 +59,7 @@ export interface FFTVisualizerOptions {
   radialInnerRadius?: number
   /** Gap between bars as a fraction of bar width (0 = none, max 0.9; default: 0.25) */
   barSpace?: number
-  /** Mirrored reflection (0 = off; default: 0) */
+  /** Mirrored reflection (0 = off; max 0.7; default: 0). Linear mono: fraction of the canvas height given to the reflection. Radial: how far the mirror reaches inward, as a fraction of the bars' radial length */
   reflexRatio?: number
   /** Brightness of the reflection (0-1; default: 0.25) */
   reflexAlpha?: number
@@ -261,8 +261,12 @@ const fragmentShaderSource = `
         level = (r - innerR) / (outerR - innerR);
         levelPx = (r - innerR) * u_resolution.y;
       } else if (u_reflexRatio > 0.0) {
-        // Reflection inside the inner circle: bars mirror inward at half height
-        level = (innerR - r) / (outerR - innerR) * 2.0;
+        // Reflection inside the inner circle. There is no band to reserve here —
+        // the inner radius is u_radialInner's job — so u_reflexRatio scales how
+        // far the mirror reaches inward: 1.0 would match the main bar's radial
+        // length, 0.5 reproduces the old fixed-half look. Clipped at the centre
+        // when the inner circle is smaller than the mirror.
+        level = (innerR - r) / (outerR - innerR) / u_reflexRatio;
         levelPx = (innerR - r) * u_resolution.y;
         radialDim = u_reflexAlpha;
       } else {
@@ -334,8 +338,11 @@ const fragmentShaderSource = `
     float dim = 1.0;
     if (u_reflexRatio > 0.0) {
       if (uv.y < u_reflexRatio) {
-        // Reflection is squashed to half the main bar height
-        y = (u_reflexRatio - uv.y) / (1.0 - u_reflexRatio) * 2.0;
+        // The reflection is scaled to the band it was given, so a full-height bar
+        // mirrors exactly down to the canvas bottom. Scaling it independently
+        // (a fixed half of the bar height) left the band partly empty once
+        // u_reflexRatio passed ~0.33, so the slider only pushed the analyzer up.
+        y = (u_reflexRatio - uv.y) / u_reflexRatio;
         levelPx = (u_reflexRatio - uv.y) * levelRes;
         dim = u_reflexAlpha;
       } else {

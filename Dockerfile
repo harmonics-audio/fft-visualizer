@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 #
-# The Vue playground, served as a static site at demo.fftvisualizer.com.
+# The playground site, served at demo.fftvisualizer.com: a switcher landing plus
+# the core, Vue, React and Nuxt playgrounds under /core/, /vue/, /react/, /nuxt/.
 # Built and pushed by .github/workflows/ci.yml; Coolify pulls the image.
 
 # --- Build stage ---
@@ -15,16 +16,17 @@ COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm i --frozen-lockfile
 
-# Builds @fft-visualizer/core, then the Vue playground into packages/vue/dist.
+# Builds the four playgrounds and assembles them into playground/site/dist.
 # wasm/pkg is committed, so no Rust/wasm-pack toolchain is needed here.
 RUN pnpm build:playground
 
 # --- Runtime stage ---
-# nginx-unprivileged already runs as a non-root user and listens on 8080, so
-# there is nothing to configure — the playground is plain static files (the WASM
-# FFT is base64-inlined into the JS bundle, so no extra MIME types either).
+# nginx-unprivileged already runs as a non-root user and listens on 8080. The
+# config it ships is replaced because the site needs one thing beyond static
+# files: the /api/radio proxy the playgrounds' radio source fetches.
 FROM nginxinc/nginx-unprivileged:alpine
-COPY --from=build /app/packages/vue/dist /usr/share/nginx/html
+COPY playground/site/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/playground/site/dist /usr/share/nginx/html
 
 EXPOSE 8080
 # busybox wget (alpine) — Coolify needs an in-image HEALTHCHECK to report health.

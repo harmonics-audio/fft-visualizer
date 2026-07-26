@@ -58,13 +58,21 @@ packages/
   core/                 # @fft-visualizer/core — vanilla renderer + engines
     src/                #   FFTVisualizer class, localAudio, webSocketFft, gradients, processing
     wasm/               #   Rust FFT processor (wasm-pack, bundler target; pkg/ is committed)
-  vue/                  # @fft-visualizer/vue — Vue 3 wrapper + playground demo
+  vue/                  # @fft-visualizer/vue — Vue 3 wrapper
     src/                #   FFTVisualizer.vue, composables
-    playground/         #   dev/demo app (deployed to demo.fftvisualizer.com)
   react/                # @fft-visualizer/react — React wrapper
     src/                #   FFTVisualizer.tsx
+playground/             # the demo site (deployed to demo.fftvisualizer.com)
+  shared/               #   presets, control descriptors, radio source, stylesheet
+  core/ vue/            #   one app per package, all four at full parity…
+  react/ nuxt/          #   …served at /core/, /vue/, /react/, /nuxt/
+  site/                 #   switcher landing + the nginx config the image runs
 backend-examples/       # reference WebSocket FFT servers (python / nodejs / rust)
 ```
+
+Every playground renders the same controls and presets from `playground/shared`,
+so the four apps show the same visualizer through four different APIs rather than
+four drifting demos.
 
 ## Development
 
@@ -73,14 +81,15 @@ Uses [pnpm](https://pnpm.io) workspaces.
 ```bash
 pnpm install            # install all workspace deps
 
-pnpm dev                # run the Vue playground demo
+pnpm dev                # run the Vue playground (dev:core / dev:react / dev:nuxt for the others)
 pnpm build              # build every package (pnpm -r build)
 pnpm typecheck          # typecheck every package
 pnpm test               # run all tests (core: node, vue/react: browser via Playwright)
 pnpm lint:fix           # ESLint with auto-fix
 
 pnpm build:wasm         # rebuild the Rust WASM FFT (requires the Rust toolchain + wasm-pack)
-pnpm build:playground   # build the demo app (what the Docker image serves)
+pnpm build:playground   # build all four apps into playground/site/dist (what the image serves)
+pnpm preview            # serve that assembled site, radio proxy included
 ```
 
 The committed `packages/core/wasm/pkg/` artifacts mean a normal build needs no

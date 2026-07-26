@@ -13,6 +13,7 @@ import {
   formatValue,
   type Control
 } from '@fft-visualizer/playground-shared/controls'
+import { createRadioAudio, SOMA } from '@fft-visualizer/playground-shared/radioAudio'
 import '@fft-visualizer/playground-shared/playground.css'
 
 // The visual settings the controls edit. Data-source settings live in the header
@@ -21,10 +22,21 @@ const state: FftPresetSettings = { ...initialSettings }
 
 // Data source. Empty ws URL by default so a hosted (HTTPS) demo never
 // auto-connects to an insecure ws:// endpoint — enter your own wss:// server.
-let mode: 'local' | 'websocket' = 'local'
+//
+// 'radio' is the playground's own name for the visualizer's `external` mode: the
+// shared radio engine analyses a live stream and feeds frames in through
+// feedData, exactly as a consumer would with their own source. It is the default
+// because it needs neither a microphone permission prompt nor a server — the
+// visitor only has to press Connect (autoplay policy requires the gesture).
+let source: 'radio' | 'local' | 'websocket' = 'radio'
 let websocketUrl = ''
 let audioSource: 'mic' | 'display' = 'mic'
 let audioDeviceId = ''
+
+const radio = createRadioAudio()
+let radioPlaying = false
+
+const vizMode = () => (source === 'radio' ? 'external' : source)
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -37,15 +49,20 @@ app.innerHTML = `
       <div class="source-selector">
         <label>Mode</label>
         <select id="mode">
-          <option value="local">Local (WASM)</option>
+          <option value="radio">Radio (SomaFM)</option>
+          <option value="local">Microphone (WASM)</option>
           <option value="websocket">WebSocket</option>
         </select>
-        <select id="audioSource">
+        <select id="audioSource" class="hidden">
           <option value="mic">Microphone</option>
           <option value="display">System Audio</option>
         </select>
         <select id="device" class="hidden"></select>
         <input id="wsUrl" class="text-input hidden" type="text" placeholder="wss://your-server:port" />
+        <span id="radioInfo" class="radio-info">
+          <a href="${SOMA.station}" target="_blank" rel="noopener">${SOMA.name}</a>
+          on SomaFM — <a href="${SOMA.support}" target="_blank" rel="noopener">support them</a>
+        </span>
         <button id="connect" class="connect-btn"></button>
       </div>
     </header>
@@ -68,24 +85,51 @@ app.innerHTML = `
 `
 
 const canvas = app.querySelector<HTMLCanvasElement>('#viz')!
-const viz = new FFTVisualizer(canvas, { ...state, mode, audioSource })
+const viz = new FFTVisualizer(canvas, { ...state, mode: vizMode(), audioSource })
 
 // ---- Data source selector ----
 const modeSel = app.querySelector<HTMLSelectElement>('#mode')!
 const audioSourceSel = app.querySelector<HTMLSelectElement>('#audioSource')!
 const deviceSel = app.querySelector<HTMLSelectElement>('#device')!
 const wsInput = app.querySelector<HTMLInputElement>('#wsUrl')!
+const radioInfo = app.querySelector<HTMLSpanElement>('#radioInfo')!
 const connectBtn = app.querySelector<HTMLButtonElement>('#connect')!
 
+function stopRadio() {
+  if (!radioPlaying) return
+  radio.stop()
+  radioPlaying = false
+}
+
+function startRadio() {
+  radioPlaying = true
+  // Feed left/right only while Stereo is on: the core mirrors mono data across
+  // both channels itself, but never derives the mono buffer from a stereo pair,
+  // so the non-stereo layout would have nothing to draw.
+  radio.start((mono, left, right) => {
+    if (state.stereo) viz.feedData(mono, left, right)
+    else viz.feedData(mono)
+  }).catch(() => {
+    // Blocked stream or a dead proxy — drop back to a stopped button.
+    radioPlaying = false
+    refreshConnectBtn()
+  })
+}
+
+// In radio mode the visualizer is 'connected' from the moment the source is
+// picked — `external` renders whatever it was last fed — so the button has to
+// track the stream rather than viz.isConnected.
 function refreshConnectBtn() {
-  connectBtn.textContent = viz.isConnected ? 'Disconnect' : 'Connect'
-  connectBtn.classList.toggle('disconnect', viz.isConnected)
+  const active = source === 'radio' ? radioPlaying : viz.isConnected
+  connectBtn.textContent = active ? 'Disconnect' : 'Connect'
+  connectBtn.classList.toggle('disconnect', active)
 }
 
 function refreshSourceInputs() {
-  audioSourceSel.classList.toggle('hidden', mode !== 'local')
-  wsInput.classList.toggle('hidden', mode !== 'websocket')
-  const showDevices = mode === 'local' && audioSource === 'mic' && viz.audioDevices.length > 1
+  audioSourceSel.classList.toggle('hidden', source !== 'local')
+  wsInput.classList.toggle('hidden', source !== 'websocket')
+  radioInfo.classList.toggle('hidden', source !== 'radio')
+  const showDevices = source === 'local' && audioSource === 'mic' && viz.audioDevices.length > 1
   deviceSel.classList.toggle('hidden', !showDevices)
   if (showDevices) {
     deviceSel.innerHTML =
@@ -97,7 +141,7 @@ function refreshSourceInputs() {
 
 function applySource() {
   viz.setOptions({
-    mode,
+    mode: vizMode(),
     audioSource,
     audioDeviceId: audioDeviceId || undefined,
     websocketUrl: websocketUrl || undefined
@@ -105,9 +149,13 @@ function applySource() {
 }
 
 modeSel.addEventListener('change', () => {
-  mode = modeSel.value as typeof mode
+  // Switching away has to stop the stream — nothing else would, and it would keep
+  // playing over whatever source comes next.
+  stopRadio()
+  source = modeSel.value as typeof source
   refreshSourceInputs()
   applySource()
+  refreshConnectBtn()
 })
 audioSourceSel.addEventListener('change', () => {
   audioSource = audioSourceSel.value as typeof audioSource
@@ -123,8 +171,16 @@ wsInput.addEventListener('change', () => {
   applySource()
 })
 connectBtn.addEventListener('click', () => {
-  if (viz.isConnected) viz.disconnect()
-  else viz.connect()
+  // The radio branch stays inside the click handler: autoplay policy only allows
+  // playback to begin from a user gesture.
+  if (source === 'radio') {
+    if (radioPlaying) stopRadio()
+    else startRadio()
+  } else if (viz.isConnected) {
+    viz.disconnect()
+  } else {
+    viz.connect()
+  }
   refreshConnectBtn()
 })
 

@@ -3,10 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Preset library, control-panel descriptors and stylesheet shared by every playground app. Never published.",
+  "description": "Preset library, control-panel descriptors, radio source and stylesheet shared by every playground app. Never published.",
   "exports": {
     "./presets": "./presets.ts",
     "./controls": "./controls.ts",
+    "./radioStream": "./radioStream.ts",
+    "./radioAudio": "./radioAudio.ts",
+    "./radioDevProxy": "./radioDevProxy.ts",
     "./playground.css": "./playground.css"
   },
   "scripts": {

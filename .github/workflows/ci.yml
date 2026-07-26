@@ -39,6 +39,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The playgrounds are not part of `pnpm -r build` (they're private apps with
+      # a build:site script), so this is what catches a broken demo on a PR rather
+      # than in the image build below, which only runs on main.
+      - name: Build playground site
+        run: pnpm build:playground
+
   # Build the playground image (demo.fftvisualizer.com), smoke-test that it boots
   # and serves, then push to the self-hosted registry. Only on main, after CI passes.
   build-push-demo:
@@ -91,12 +97,52 @@ jobs:
           done
 
           echo "serving=$serving health=$health"
+
+          # The switcher landing only links the four apps, so nothing else would
+          # notice an assembly step that silently dropped one. Probed here, while
+          # the container is still up; asserted after the teardown below.
+          missing=
+          if [ "$serving" = 1 ]; then
+            for path in /core/ /vue/ /react/ /nuxt/; do
+              curl -fsS -o /dev/null "http://localhost:8080$path" || missing="$missing $path"
+            done
+          fi
+
+          # Radio is the playgrounds' default source, so a broken /api/radio is a
+          # broken demo. Sent with the headers a real listener sends: SomaFM
+          # hotlink-blocks a browser User-Agent or any Referer, and nginx forwards
+          # both unless told otherwise — which is exactly how this once shipped broken.
+          # curl exits 28 when --max-time cuts the endless stream, hence `|| true`.
+          : > radio.bin   # curl leaves it untouched if it never connects, so start empty
+          radio=$(curl -s -o radio.bin -w '%{http_code}' --max-time 10 \
+            -H 'Referer: http://localhost:8080/vue/' \
+            -H 'Range: bytes=0-' \
+            -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36' \
+            http://localhost:8080/api/radio || true)
+          radio_bytes=$(wc -c < radio.bin | tr -d ' ')
+          echo "radio=$radio bytes=$radio_bytes"
+
           echo "----- container logs -----"; docker logs smoke || true
           echo "----- healthcheck log -----"
           docker inspect -f '{{if .State.Health}}{{range .State.Health.Log}}exit={{.ExitCode}} {{printf "%q" .Output}}{{"\n"}}{{end}}{{end}}' smoke || true
           docker rm -f smoke >/dev/null 2>&1 || true
 
           [ "$serving" = 1 ] || { echo "::error::Smoke test failed — image did not serve on :8080"; exit 1; }
+          [ -z "$missing" ] || { echo "::error::Smoke test failed — not served:$missing"; exit 1; }
+
+          # A 403 means our own proxy headers are wrong and the demo is broken; an
+          # upstream outage is SomaFM's problem, not a reason to block a deploy that
+          # may not even touch the radio. Only the former fails the build.
+          case "$radio" in
+            403|404)
+              echo "::error::Smoke test failed — /api/radio returned $radio (proxy headers rejected upstream)"; exit 1 ;;
+            200)
+              [ "$radio_bytes" -gt 0 ] \
+                || { echo "::error::Smoke test failed — /api/radio returned 200 with an empty body"; exit 1; } ;;
+            *)
+              echo "::warning::/api/radio returned '$radio' — treating as a SomaFM outage, not a config error" ;;
+          esac
+
           # The in-image HEALTHCHECK runs *inside* the container, so it catches bind-address
           # and localhost/IPv6 mistakes that a published-port curl from the runner cannot.
           # Coolify gates its proxy switchover on this, so an unhealthy image never goes live.

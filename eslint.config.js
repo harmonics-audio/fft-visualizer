@@ -7,6 +7,8 @@ export default ts.config(
   {
     ignores: [
       '**/dist/**',
+      '**/.nuxt/**',
+      '**/.output/**',
       '**/wasm/pkg/**',
       '**/wasm/target/**',
       'backend-examples/**',
@@ -26,6 +28,10 @@ export default ts.config(
       }
     },
     rules: {
+      // typescript-eslint turns no-undef off for .ts but not for .vue, where it
+      // then misreads ambient globals — Nuxt's auto-imported composables have no
+      // import statement to see. TypeScript already reports genuine unknowns.
+      'no-undef': 'off',
       // The codebase uses non-null assertions on typed-array indexing deliberately
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-explicit-any': 'warn'

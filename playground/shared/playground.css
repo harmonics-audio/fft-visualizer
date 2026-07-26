@@ -36,6 +36,10 @@ h1 { font-size: 1.5rem; font-weight: 600; }
 
 .source-selector { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
+/* SomaFM asks for attribution — shown whenever the radio source is selected. */
+.radio-info { font-size: 0.8rem; color: #888; }
+.radio-info a { color: #58a6ff; }
+
 /* ---- Visualizer ---- */
 
 .visualizer-container {

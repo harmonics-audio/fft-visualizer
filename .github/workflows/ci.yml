@@ -77,17 +77,30 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke test (boot the image and hit it on :8080)
+      - name: Smoke test (boot the image, assert it serves and reports healthy)
         run: |
           docker run -d --name smoke -p 8080:8080 "${IMAGE}:${{ github.sha }}"
-          ok=0
-          for i in $(seq 1 30); do
-            if curl -fsS -o /dev/null http://localhost:8080/; then ok=1; break; fi
+
+          serving=0
+          health=starting
+          for i in $(seq 1 60); do
+            if [ "$serving" = 0 ] && curl -fsS -o /dev/null http://localhost:8080/; then serving=1; fi
+            health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' smoke)
+            if [ "$serving" = 1 ] && [ "$health" != starting ]; then break; fi
             sleep 1
           done
+
+          echo "serving=$serving health=$health"
           echo "----- container logs -----"; docker logs smoke || true
+          echo "----- healthcheck log -----"
+          docker inspect -f '{{if .State.Health}}{{range .State.Health.Log}}exit={{.ExitCode}} {{printf "%q" .Output}}{{"\n"}}{{end}}{{end}}' smoke || true
           docker rm -f smoke >/dev/null 2>&1 || true
-          [ "$ok" = "1" ] || { echo "::error::Smoke test failed — image did not serve on :8080"; exit 1; }
+
+          [ "$serving" = 1 ] || { echo "::error::Smoke test failed — image did not serve on :8080"; exit 1; }
+          # The in-image HEALTHCHECK runs *inside* the container, so it catches bind-address
+          # and localhost/IPv6 mistakes that a published-port curl from the runner cannot.
+          # Coolify gates its proxy switchover on this, so an unhealthy image never goes live.
+          [ "$health" = healthy ] || { echo "::error::Smoke test failed — container health is '$health', expected healthy"; exit 1; }
 
       - name: Push image
         run: |

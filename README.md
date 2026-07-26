@@ -14,6 +14,7 @@ package; framework integrations are thin wrappers around it.
 |---------|-------------|--|
 | [`fft-visualizer-core`](./packages/core) | Framework-agnostic WebGL renderer + audio/WebSocket engines as a vanilla TypeScript class. Zero framework dependencies. | `packages/core` |
 | [`fft-visualizer-vue`](./packages/vue) | Vue 3 component wrapping the core. One peer dependency: Vue 3. | `packages/vue` |
+| [`fft-visualizer-react`](./packages/react) | React component wrapping the core. One peer dependency: React 18/19. | `packages/react` |
 
 The core owns all rendering, audio capture (mic / tab / system via the Web Audio
 API + a lazy-loaded Rust/WASM FFT), WebSocket streaming, and the WebGL draw. Each
@@ -24,6 +25,8 @@ core's imperative API.
 
 - **Using Vue?** Install [`fft-visualizer-vue`](./packages/vue) — see its README
   for props, modes, and examples.
+- **Using React?** Install [`fft-visualizer-react`](./packages/react) — same
+  options as props, plus callbacks and an imperative ref.
 - **Vanilla JS/TS, or another framework?** Use
   [`fft-visualizer-core`](./packages/core) directly:
 
@@ -57,7 +60,9 @@ packages/
     wasm/               #   Rust FFT processor (wasm-pack, bundler target; pkg/ is committed)
   vue/                  # fft-visualizer-vue — Vue 3 wrapper + playground demo
     src/                #   FFTVisualizer.vue, composables
-    playground/         #   dev/demo app (deployed to Vercel)
+    playground/         #   dev/demo app (deployed to demo.fftvisualizer.com)
+  react/                # fft-visualizer-react — React wrapper
+    src/                #   FFTVisualizer.tsx
 backend-examples/       # reference WebSocket FFT servers (python / nodejs / rust)
 ```
 
@@ -71,11 +76,11 @@ pnpm install            # install all workspace deps
 pnpm dev                # run the Vue playground demo
 pnpm build              # build every package (pnpm -r build)
 pnpm typecheck          # typecheck every package
-pnpm test               # run all tests (core: node, vue: browser via Playwright)
+pnpm test               # run all tests (core: node, vue/react: browser via Playwright)
 pnpm lint:fix           # ESLint with auto-fix
 
 pnpm build:wasm         # rebuild the Rust WASM FFT (requires the Rust toolchain + wasm-pack)
-pnpm build:playground   # build the demo app (what Vercel deploys)
+pnpm build:playground   # build the demo app (what the Docker image serves)
 ```
 
 The committed `packages/core/wasm/pkg/` artifacts mean a normal build needs no

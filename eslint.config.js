@@ -17,7 +17,7 @@ export default ts.config(
   ...ts.configs.recommended,
   ...vue.configs['flat/essential'],
   {
-    files: ['**/*.{ts,vue}'],
+    files: ['**/*.{ts,tsx,vue}'],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
       parserOptions: {

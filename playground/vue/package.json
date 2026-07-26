@@ -1,6 +1,6 @@
 {
   "name": "@fft-visualizer/playground-vue",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Vue 3 playground for @fft-visualizer/vue. Built into the switcher site at /vue/. Never published.",

@@ -1,6 +1,6 @@
 {
   "name": "@fft-visualizer/playground-react",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "React playground for @fft-visualizer/react. Built into the switcher site at /react/. Never published.",

@@ -8,7 +8,10 @@ The entire visual — bars, LED segments, radial layout, gradient, glow, reflect
 is drawn by a single fragment shader in one GPU draw call, so it stays smooth even
 at 120 fps with 80 bands in stereo.
 
-This is the engine that powers [`@fft-visualizer/vue`](https://www.npmjs.com/package/@fft-visualizer/vue).
+🔗 Live demo: https://demo.fftvisualizer.com/core/ · Docs: https://fftvisualizer.com/core/installation
+
+This is the engine that powers [`@fft-visualizer/vue`](https://www.npmjs.com/package/@fft-visualizer/vue)
+and [`@fft-visualizer/react`](https://www.npmjs.com/package/@fft-visualizer/react).
 Use this package directly for vanilla JS/TS, or to build a wrapper for any other
 framework.
 

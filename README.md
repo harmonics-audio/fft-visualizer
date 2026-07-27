@@ -8,6 +8,8 @@ it stays smooth even at 120 fps with 80 bands in stereo.
 This is a monorepo. The rendering engine lives in a framework-agnostic core
 package; framework integrations are thin wrappers around it.
 
+🔗 Live demo: https://demo.fftvisualizer.com · Docs: https://fftvisualizer.com
+
 ## Packages
 
 | Package | Description | |

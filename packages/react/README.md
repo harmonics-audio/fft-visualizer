@@ -8,7 +8,7 @@ The entire visual — bars, LED segments, radial layout, gradient, glow, reflect
 is drawn by a single fragment shader in one GPU draw call, so it stays smooth even
 at 120 fps with 80 bands in stereo.
 
-🔗 Live demo: https://demo.fftvisualizer.com · Docs: https://fftvisualizer.com
+🔗 Live demo: https://demo.fftvisualizer.com/react/ · Docs: https://fftvisualizer.com/react/installation
 
 ## Highlights
 
@@ -285,7 +285,7 @@ JSON config message on connect, then a binary `uint8` (0–255) per frequency bi
 
 The full spec and reference servers (Python, Node.js, Rust) are in the
 [repository](https://github.com/harmonics-audio/fft-visualizer/tree/main/backend-examples)
-and on the [docs site](https://fftvisualizer.com).
+and on the [docs site](https://fftvisualizer.com/guide/websocket-protocol).
 
 ## Related packages
 

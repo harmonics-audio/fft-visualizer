@@ -10,6 +10,8 @@ at 120 fps with 80 bands in stereo.
 
 🔗 Live demo: https://demo.fftvisualizer.com/core/ · Docs: https://fftvisualizer.com/core/installation
 
+![FFT Visualizer reacting to music](https://raw.githubusercontent.com/harmonics-audio/fft-visualizer/main/docs/demo.gif)
+
 This is the engine that powers [`@fft-visualizer/vue`](https://www.npmjs.com/package/@fft-visualizer/vue)
 and [`@fft-visualizer/react`](https://www.npmjs.com/package/@fft-visualizer/react).
 Use this package directly for vanilla JS/TS, or to build a wrapper for any other

@@ -9,7 +9,8 @@ is drawn by a single fragment shader in one GPU draw call, so it stays smooth ev
 at 120 fps with 80 bands in stereo.
 
 🔗 Live demo: https://demo.fftvisualizer.com/vue/ · Docs: https://fftvisualizer.com/vue/installation
-<!-- ![FFT Visualizer demo](docs/demo.gif)   (add a recorded GIF here) -->
+
+![FFT Visualizer reacting to music](https://raw.githubusercontent.com/harmonics-audio/fft-visualizer/main/docs/demo.gif)
 
 ## Highlights
 

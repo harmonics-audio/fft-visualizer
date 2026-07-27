@@ -10,6 +10,12 @@ package; framework integrations are thin wrappers around it.
 
 🔗 Live demo: https://demo.fftvisualizer.com · Docs: https://fftvisualizer.com
 
+![FFT Visualizer reacting to music](docs/demo.gif)
+
+▶️ With sound:
+
+https://github.com/user-attachments/assets/a703069a-29f3-4072-b58c-c56df5ea3546
+
 ## Packages
 
 | Package | Description | |

@@ -1,5 +1,12 @@
 # @fft-visualizer/playground-shared
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [b78c915]
+  - @fft-visualizer/core@1.0.0
+
 ## 0.0.1
 
 ### Patch Changes

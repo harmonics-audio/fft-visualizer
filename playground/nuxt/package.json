@@ -1,6 +1,6 @@
 {
   "name": "@fft-visualizer/playground-nuxt",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "description": "Nuxt 4 playground for @fft-visualizer/vue. Prerendered into the switcher site at /nuxt/. Never published.",

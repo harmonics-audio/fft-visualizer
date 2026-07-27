@@ -1,6 +1,6 @@
 {
   "name": "@fft-visualizer/playground-shared",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "description": "Preset library, control-panel descriptors, radio source and stylesheet shared by every playground app. Never published.",

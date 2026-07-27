@@ -1,6 +1,6 @@
 {
   "name": "@fft-visualizer/core",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Framework-agnostic, WebGL-based real-time audio spectrum analyzer / FFT visualizer — a vanilla TypeScript class. Powers @fft-visualizer/vue.",
   "type": "module",
   "module": "./dist/fft-visualizer-core.js",

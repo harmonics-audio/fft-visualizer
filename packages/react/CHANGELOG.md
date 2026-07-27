@@ -1,5 +1,18 @@
 # @fft-visualizer/react
 
+## 1.0.0
+
+### Major Changes
+
+- b78c915: First stable release. 🎉
+
+  This release declares the public API stable: the shared options surface of the core class and the Vue/React wrappers, the three data modes (`websocket`, `local`, `external`), the WebSocket frame protocol, the gradient system, and the `/wasm` FFT entry point. From here on, anything breaking ships in a new major.
+
+### Patch Changes
+
+- Updated dependencies [b78c915]
+  - @fft-visualizer/core@1.0.0
+
 ## 0.5.0
 
 ### Minor Changes

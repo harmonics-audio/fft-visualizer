@@ -1,6 +1,6 @@
 {
   "name": "@fft-visualizer/playground-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "description": "Vanilla-TS playground for @fft-visualizer/core. Built into the switcher site at /core/. Never published.",

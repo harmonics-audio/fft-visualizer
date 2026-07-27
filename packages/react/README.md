@@ -10,8 +10,6 @@ at 120 fps with 80 bands in stereo.
 
 🔗 Live demo: https://demo.fftvisualizer.com/react/ · Docs: https://fftvisualizer.com/react/installation
 
-![FFT Visualizer reacting to music](https://raw.githubusercontent.com/harmonics-audio/fft-visualizer/main/docs/demo.gif)
-
 ## Highlights
 
 - **WebGL fragment-shader rendering** — the whole spectrum is one draw call; no per-bar canvas ops

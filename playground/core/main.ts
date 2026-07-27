@@ -147,9 +147,12 @@ function refreshSourceInputs() {
   const showDevices = source === 'local' && audioSource === 'mic' && viz.audioDevices.length > 1
   deviceSel.classList.toggle('hidden', !showDevices)
   if (showDevices) {
-    deviceSel.innerHTML =
-      `<option value="">Default</option>` +
-      viz.audioDevices.map(d => `<option value="${d.deviceId}">${d.label || d.deviceId}</option>`).join('')
+    // Nodes rather than an innerHTML string: device labels come from the OS via
+    // enumerateDevices(), so they are not ours to hand back as markup.
+    deviceSel.replaceChildren(
+      new Option('Default', ''),
+      ...viz.audioDevices.map(d => new Option(d.label || d.deviceId, d.deviceId))
+    )
     deviceSel.value = audioDeviceId
   }
 }
@@ -246,7 +249,7 @@ function createControl(control: Control): HTMLElement {
     const text = document.createElement('span')
     text.textContent = control.label
     const select = document.createElement('select')
-    select.innerHTML = control.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('')
+    select.append(...control.options.map(o => new Option(o.label, String(o.value))))
     const render = () => { select.value = String(state[control.key]) }
     select.addEventListener('change', () =>
       setOption(control.key, (control.numeric ? Number(select.value) : select.value) as FftPresetSettings[typeof control.key]))
@@ -331,16 +334,23 @@ function persistUserPresets() {
 }
 
 function renderPresetOptions() {
-  const optgroup = (label: string, presets: FftPreset[]) =>
-    `<optgroup label="${label}">` +
-    presets.map(p => `<option value="${p.name}">${p.name}</option>`).join('') +
-    `</optgroup>`
+  // Nodes rather than an innerHTML string: a preset name is typed by the visitor
+  // and replayed from localStorage, so one containing markup would otherwise run.
+  const optgroup = (label: string, presets: FftPreset[]) => {
+    const group = document.createElement('optgroup')
+    group.label = label
+    group.append(...presets.map(p => new Option(p.name, p.name)))
+    return group
+  }
 
   const selected = presetSel.value
-  presetSel.innerHTML =
-    `<option value="" disabled>Choose a preset…</option>` +
-    optgroup('Built-in', builtinPresets) +
-    (userPresets.length ? optgroup('Saved', userPresets) : '')
+  const placeholder = new Option('Choose a preset…', '')
+  placeholder.disabled = true
+  presetSel.replaceChildren(
+    placeholder,
+    optgroup('Built-in', builtinPresets),
+    ...(userPresets.length ? [optgroup('Saved', userPresets)] : [])
+  )
   presetSel.value = selected
   deleteBtn.classList.toggle('hidden', !isUserPreset(selected))
 }

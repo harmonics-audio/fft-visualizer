@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://fftvisualizer.com
+    about: Guide, Core API, and the Vue and React wrapper docs.
+  - name: Live demo
+    url: https://demo.fftvisualizer.com
+    about: Try the visualizer with every option before filing — it often answers "is this a bug?".

@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a new option, visual mode, or framework wrapper
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: >
+        Describe the use case rather than the implementation — it's often possible
+        with the existing options, and if not, the use case shapes the design.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      description: A new option, a visual mode, a wrapper for another framework, …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which part would this affect?
+      options:
+        - The renderer / a new visual mode
+        - A new or changed option
+        - The audio pipeline (local, WebSocket, or external data)
+        - A framework wrapper
+        - Documentation or examples
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Including "I worked around it by …", which is useful signal on its own.

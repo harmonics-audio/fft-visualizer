@@ -1,0 +1,97 @@
+name: Bug report
+description: Something renders wrong, crashes, or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rendering bugs are often GPU- or driver-specific, so the environment fields
+        below matter more than usual. Thanks for filling them in.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      description: Which package are you using?
+      options:
+        - "@fft-visualizer/core"
+        - "@fft-visualizer/vue"
+        - "@fft-visualizer/react"
+        - The playground / demo site
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.5.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Data mode
+      description: Where the FFT data comes from — see the Data modes guide.
+      options:
+        - local (mic or tab/system audio)
+        - websocket
+        - external (you push the data)
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >
+        Steps to reproduce, ideally with the options you passed. A link to a minimal
+        StackBlitz/CodeSandbox is ideal; a code snippet is fine too.
+      render: ts
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: "Chrome 141 on macOS 15.5"
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: WebGL renderer
+      description: >
+        From chrome://gpu (Chromium) or about:support (Firefox) — the "GL Renderer"
+        line. Skip it if you can't find it.
+      placeholder: "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)"
+
+  - type: dropdown
+    id: demo-site
+    attributes:
+      label: Does it also happen on demo.fftvisualizer.com?
+      options:
+        - "Yes"
+        - "No"
+        - Didn't check
+        - Doesn't apply
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any errors or warnings. Setting the `debug` option to true adds connection diagnostics.
+      render: shell

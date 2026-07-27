@@ -20,6 +20,47 @@ body {
 
 .playground { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
+/* ---- Playground switcher ---- */
+
+/* Full-bleed bar, but its contents share .playground's column so the brand lines
+   up with the h1 below it. The site has no landing page any more, so this is the
+   only way across to the other three apps. */
+.playground-nav {
+  border-bottom: 1px solid #222;
+  background: #161616;
+}
+
+.playground-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.playground-nav a { color: #888; text-decoration: none; }
+.playground-nav a:hover { color: #eee; }
+
+.playground-nav-brand { font-size: 0.9rem; font-weight: 600; color: #eee; }
+
+.playground-nav-links { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+
+.playground-nav-links a {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.playground-nav-links a.active {
+  color: #eee;
+  background: #262626;
+}
+
+.playground-nav-repo { font-size: 0.8rem; }
+
 /* ---- Header + data source ---- */
 
 header {

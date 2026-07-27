@@ -67,8 +67,8 @@ packages/
 playground/             # the demo site (deployed to demo.fftvisualizer.com)
   shared/               #   presets, control descriptors, radio source, stylesheet
   core/ vue/            #   one app per package, all four at full parity…
-  react/ nuxt/          #   …served at /core/, /vue/, /react/, /nuxt/
-  site/                 #   switcher landing + the nginx config the image runs
+  react/ nuxt/          #   …served at /core/, /vue/, /react/, /nuxt/ (/ → /core/)
+  site/                 #   the nginx config the image runs
 backend-examples/       # reference WebSocket FFT servers (python / nodejs / rust)
 ```
 

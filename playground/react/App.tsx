@@ -16,6 +16,7 @@ import {
   type Control
 } from '@fft-visualizer/playground-shared/controls'
 import { createRadioAudio, SOMA, type RadioAudio } from '@fft-visualizer/playground-shared/radioAudio'
+import { playgrounds, DOCS_URL, REPO_URL } from '@fft-visualizer/playground-shared/playgrounds'
 
 const USER_PRESETS_KEY = 'fft-playground-user-presets'
 
@@ -248,128 +249,149 @@ export default function App() {
   }
 
   return (
-    <div className="playground">
-      <header>
-        <div>
-          <h1>@fft-visualizer/react Playground</h1>
-          <div className="subtitle">
-            The <code>&lt;FFTVisualizer&gt;</code> component, driven by React state.
-          </div>
-        </div>
-        <div className="source-selector">
-          <label htmlFor="mode">Mode</label>
-          <select
-            id="mode"
-            value={source}
-            onChange={e => {
-              // Switching away has to stop the stream, or it keeps playing over
-              // whatever source comes next.
-              stopRadio()
-              setSource(e.target.value as 'websocket' | 'local' | 'radio')
-            }}
-          >
-            <option value="radio">Radio (SomaFM)</option>
-            <option value="local">Microphone (WASM)</option>
-            <option value="websocket">WebSocket</option>
-          </select>
-          {source === 'local' && (
-            <>
-              <select
-                value={audioSource}
-                onChange={e => setAudioSource(e.target.value as 'mic' | 'display')}
+    <>
+      <nav className="playground-nav">
+        <div className="playground-nav-inner">
+          <a className="playground-nav-brand" href={DOCS_URL}>FFT Visualizer</a>
+          <div className="playground-nav-links">
+            {playgrounds.map(p => (
+              <a
+                key={p.id}
+                href={p.href}
+                className={p.id === 'react' ? 'active' : undefined}
+                aria-current={p.id === 'react' ? 'page' : undefined}
               >
-                <option value="mic">Microphone</option>
-                <option value="display">System Audio</option>
-              </select>
-              {audioSource === 'mic' && audioDevices.length > 1 && (
-                <select
-                  value={audioDeviceId}
-                  onChange={e => setAudioDeviceId(e.target.value)}
-                >
-                  <option value="">Default</option>
-                  {audioDevices.map(device => (
-                    <option key={device.deviceId} value={device.deviceId}>
-                      {device.label || device.deviceId}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </>
-          )}
-          {source === 'websocket' && (
-            <input
-              className="text-input"
-              type="text"
-              placeholder="wss://your-server:port"
-              value={websocketUrl}
-              onChange={e => setWebsocketUrl(e.target.value)}
-            />
-          )}
-          {source === 'radio' && (
-            <span className="radio-info">
-              <a href={SOMA.station} target="_blank" rel="noopener">{SOMA.name}</a>
-              {' '}on SomaFM — <a href={SOMA.support} target="_blank" rel="noopener">support them</a>
-            </span>
-          )}
-          <button
-            className={isActive ? 'connect-btn disconnect' : 'connect-btn'}
-            onClick={toggleConnection}
-          >{isActive ? 'Disconnect' : 'Connect'}</button>
-        </div>
-      </header>
-
-      <div ref={containerRef} className="visualizer-container">
-        <FFTVisualizer
-          ref={fftRef}
-          {...settings}
-          mode={vizMode}
-          websocketUrl={websocketUrl || undefined}
-          audioSource={audioSource}
-          audioDeviceId={audioDeviceId || undefined}
-          onConnected={() => setIsConnected(true)}
-          onDisconnected={() => setIsConnected(false)}
-        />
-      </div>
-      <button className="fullscreen-btn" onClick={toggleFullscreen}>
-        {isFullscreen ? '⛶ Exit Fullscreen' : '⛶ Fullscreen'}
-      </button>
-
-      <div className="presets-row">
-        <label htmlFor="preset">Preset</label>
-        <select id="preset" value={selectedPreset} onChange={e => applyPreset(e.target.value)}>
-          <option value="" disabled>Choose a preset…</option>
-          <optgroup label="Built-in">
-            {builtinPresets.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-          </optgroup>
-          {userPresets.length > 0 && (
-            <optgroup label="Saved">
-              {userPresets.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-            </optgroup>
-          )}
-        </select>
-        <input
-          className="text-input preset-name"
-          type="text"
-          placeholder="Save as…"
-          value={presetName}
-          onChange={e => setPresetName(e.target.value)}
-        />
-        <button onClick={savePreset}>Save</button>
-        {isUserPreset && <button onClick={deletePreset}>Delete</button>}
-      </div>
-
-      <div className="control-sections">
-        {sections.map(section => (
-          <section key={section.id} className="control-section">
-            <div className="control-section-title">{section.label}</div>
-            {section.controls.map(control => (
-              <div key={control.key} className={`control-group ${control.kind}`}>
-                {renderControl(control)}
-              </div>
+                {p.label}
+              </a>
             ))}
-          </section>
-        ))}
+          </div>
+          <a className="playground-nav-repo" href={REPO_URL}>GitHub</a>
+        </div>
+      </nav>
+
+      <div className="playground">
+        <header>
+          <div>
+            <h1>@fft-visualizer/react Playground</h1>
+            <div className="subtitle">
+              The <code>&lt;FFTVisualizer&gt;</code> component, driven by React state.
+            </div>
+          </div>
+          <div className="source-selector">
+            <label htmlFor="mode">Mode</label>
+            <select
+              id="mode"
+              value={source}
+              onChange={e => {
+                // Switching away has to stop the stream, or it keeps playing over
+                // whatever source comes next.
+                stopRadio()
+                setSource(e.target.value as 'websocket' | 'local' | 'radio')
+              }}
+            >
+              <option value="radio">Radio (SomaFM)</option>
+              <option value="local">Microphone (WASM)</option>
+              <option value="websocket">WebSocket</option>
+            </select>
+            {source === 'local' && (
+              <>
+                <select
+                  value={audioSource}
+                  onChange={e => setAudioSource(e.target.value as 'mic' | 'display')}
+                >
+                  <option value="mic">Microphone</option>
+                  <option value="display">System Audio</option>
+                </select>
+                {audioSource === 'mic' && audioDevices.length > 1 && (
+                  <select
+                    value={audioDeviceId}
+                    onChange={e => setAudioDeviceId(e.target.value)}
+                  >
+                    <option value="">Default</option>
+                    {audioDevices.map(device => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || device.deviceId}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )}
+            {source === 'websocket' && (
+              <input
+                className="text-input"
+                type="text"
+                placeholder="wss://your-server:port"
+                value={websocketUrl}
+                onChange={e => setWebsocketUrl(e.target.value)}
+              />
+            )}
+            {source === 'radio' && (
+              <span className="radio-info">
+                <a href={SOMA.station} target="_blank" rel="noopener">{SOMA.name}</a>
+                {' '}on SomaFM — <a href={SOMA.support} target="_blank" rel="noopener">support them</a>
+              </span>
+            )}
+            <button
+              className={isActive ? 'connect-btn disconnect' : 'connect-btn'}
+              onClick={toggleConnection}
+            >{isActive ? 'Disconnect' : 'Connect'}</button>
+          </div>
+        </header>
+
+        <div ref={containerRef} className="visualizer-container">
+          <FFTVisualizer
+            ref={fftRef}
+            {...settings}
+            mode={vizMode}
+            websocketUrl={websocketUrl || undefined}
+            audioSource={audioSource}
+            audioDeviceId={audioDeviceId || undefined}
+            onConnected={() => setIsConnected(true)}
+            onDisconnected={() => setIsConnected(false)}
+          />
+        </div>
+        <button className="fullscreen-btn" onClick={toggleFullscreen}>
+          {isFullscreen ? '⛶ Exit Fullscreen' : '⛶ Fullscreen'}
+        </button>
+
+        <div className="presets-row">
+          <label htmlFor="preset">Preset</label>
+          <select id="preset" value={selectedPreset} onChange={e => applyPreset(e.target.value)}>
+            <option value="" disabled>Choose a preset…</option>
+            <optgroup label="Built-in">
+              {builtinPresets.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+            </optgroup>
+            {userPresets.length > 0 && (
+              <optgroup label="Saved">
+                {userPresets.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+              </optgroup>
+            )}
+          </select>
+          <input
+            className="text-input preset-name"
+            type="text"
+            placeholder="Save as…"
+            value={presetName}
+            onChange={e => setPresetName(e.target.value)}
+          />
+          <button onClick={savePreset}>Save</button>
+          {isUserPreset && <button onClick={deletePreset}>Delete</button>}
+        </div>
+
+        <div className="control-sections">
+          {sections.map(section => (
+            <section key={section.id} className="control-section">
+              <div className="control-section-title">{section.label}</div>
+              {section.controls.map(control => (
+                <div key={control.key} className={`control-group ${control.kind}`}>
+                  {renderControl(control)}
+                </div>
+              ))}
+            </section>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

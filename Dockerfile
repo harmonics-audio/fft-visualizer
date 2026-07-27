@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
-# The playground site, served at demo.fftvisualizer.com: a switcher landing plus
-# the core, Vue, React and Nuxt playgrounds under /core/, /vue/, /react/, /nuxt/.
+# The playground site, served at demo.fftvisualizer.com: the core, Vue, React and
+# Nuxt playgrounds under /core/, /vue/, /react/, /nuxt/, with / landing on /core/.
 # Built and pushed by .github/workflows/ci.yml; Coolify pulls the image.
 
 # --- Build stage ---
@@ -32,5 +32,7 @@ EXPOSE 8080
 # busybox wget (alpine) — Coolify needs an in-image HEALTHCHECK to report health.
 # 127.0.0.1, not localhost: wget tries the ::1 record first and nginx's `listen 8080`
 # is IPv4-only, so localhost fails with ECONNREFUSED and the container never goes healthy.
+# /core/ rather than /, which is a 302: Coolify gates its proxy switchover on this
+# check, so it should fetch a real page rather than rest on wget's redirect handling.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/core/ >/dev/null || exit 1

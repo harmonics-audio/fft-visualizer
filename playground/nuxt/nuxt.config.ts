@@ -18,6 +18,13 @@ export default defineNuxtConfig({
 
   css: ['@fft-visualizer/playground-shared/playground.css'],
 
+  // `nuxt generate` crawls the links in the rendered HTML, and the switcher bar
+  // points at /core/, /vue/ and /react/ — sibling apps on the assembled site, but
+  // to the crawler they look like unvisited routes of *this* app, so it prerendered
+  // a copy of the Nuxt playground at /nuxt/core/ and friends. There is exactly one
+  // page here (app/app.vue, no pages/), so there is nothing legitimate to crawl.
+  nitro: { prerender: { crawlLinks: false, routes: ['/'] } },
+
   alias: {
     // Deliberately overrides the workspace links, which would resolve both
     // packages to their `dist` bundles: the playground then needs no prior

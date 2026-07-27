@@ -4,8 +4,10 @@
 # demo.fftvisualizer.com:
 #
 #   playground/site/dist/
-#     index.html      the switcher landing (playground/site/index.html)
 #     core/ vue/ react/ nuxt/
+#
+# There is no page at the root: nginx redirects / to /core/, and each playground
+# carries the switcher bar that reaches the other three.
 #
 # Nothing is rewritten here. Each playground already builds at the subpath it is
 # served from (`base` in its vite.config.ts, `app.baseURL` for Nuxt), so the four
@@ -27,7 +29,6 @@ pnpm --filter @fft-visualizer/playground-nuxt build:site
 rm -rf "$out"
 mkdir -p "$out"
 
-cp "$site/index.html" "$out/index.html"
 cp -R "$root/playground/core/dist" "$out/core"
 cp -R "$root/playground/vue/dist" "$out/vue"
 cp -R "$root/playground/react/dist" "$out/react"

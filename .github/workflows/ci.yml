@@ -98,15 +98,22 @@ jobs:
 
           echo "serving=$serving health=$health"
 
-          # The switcher landing only links the four apps, so nothing else would
-          # notice an assembly step that silently dropped one. Probed here, while
-          # the container is still up; asserted after the teardown below.
+          # Each app is only reachable from the others' switcher bar, so nothing
+          # else would notice an assembly step that silently dropped one. Probed
+          # here, while the container is still up; asserted after the teardown below.
           missing=
           if [ "$serving" = 1 ]; then
             for path in /core/ /vue/ /react/ /nuxt/; do
               curl -fsS -o /dev/null "http://localhost:8080$path" || missing="$missing $path"
             done
           fi
+
+          # / is the site's front door and holds no page of its own — it must
+          # redirect to the core playground. The probe above only proves the root
+          # answers *something*; curl treats a 302 as success, and so would a 200
+          # from a stray index.html that shouldn't be there.
+          root_redirect=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://localhost:8080/)
+          echo "root_redirect=$root_redirect"
 
           # Radio is the playgrounds' default source, so a broken /api/radio is a
           # broken demo. Sent with the headers a real listener sends: SomaFM
@@ -129,6 +136,11 @@ jobs:
 
           [ "$serving" = 1 ] || { echo "::error::Smoke test failed — image did not serve on :8080"; exit 1; }
           [ -z "$missing" ] || { echo "::error::Smoke test failed — not served:$missing"; exit 1; }
+
+          case "$root_redirect" in
+            "302 http://localhost:8080/core/") ;;
+            *) echo "::error::Smoke test failed — / should 302 to /core/, got '$root_redirect'"; exit 1 ;;
+          esac
 
           # A 403 means our own proxy headers are wrong and the demo is broken; an
           # upstream outage is SomaFM's problem, not a reason to block a deploy that

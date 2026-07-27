@@ -22,8 +22,19 @@ import {
   type Control
 } from '@fft-visualizer/playground-shared/controls'
 import { createRadioAudio, SOMA } from '@fft-visualizer/playground-shared/radioAudio'
+import {
+  playgrounds,
+  DOCS_URL,
+  REPO_URL,
+  type PlaygroundId
+} from '@fft-visualizer/playground-shared/playgrounds'
 
-withDefaults(defineProps<{ title?: string }>(), { title: '@fft-visualizer/vue Playground' })
+// `active` is what the Nuxt playground overrides: it renders this same component,
+// so the switcher has to be able to highlight a different entry than Vue's.
+withDefaults(defineProps<{ title?: string, active?: PlaygroundId }>(), {
+  title: '@fft-visualizer/vue Playground',
+  active: 'vue'
+})
 
 // The visual settings the controls edit. Data-source settings live in the header
 // selector below, not here — they aren't part of a preset.
@@ -201,6 +212,22 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <nav class="playground-nav">
+    <div class="playground-nav-inner">
+      <a class="playground-nav-brand" :href="DOCS_URL">FFT Visualizer</a>
+      <div class="playground-nav-links">
+        <a
+          v-for="p in playgrounds"
+          :key="p.id"
+          :href="p.href"
+          :class="{ active: p.id === active }"
+          :aria-current="p.id === active ? 'page' : undefined"
+        >{{ p.label }}</a>
+      </div>
+      <a class="playground-nav-repo" :href="REPO_URL">GitHub</a>
+    </div>
+  </nav>
+
   <div class="playground">
     <header>
       <div>

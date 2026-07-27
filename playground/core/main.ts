@@ -14,6 +14,7 @@ import {
   type Control
 } from '@fft-visualizer/playground-shared/controls'
 import { createRadioAudio, SOMA } from '@fft-visualizer/playground-shared/radioAudio'
+import { playgrounds, DOCS_URL, REPO_URL } from '@fft-visualizer/playground-shared/playgrounds'
 import '@fft-visualizer/playground-shared/playground.css'
 
 // The visual settings the controls edit. Data-source settings live in the header
@@ -40,6 +41,20 @@ const vizMode = () => (source === 'radio' ? 'external' : source)
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
+  <nav class="playground-nav">
+    <div class="playground-nav-inner">
+      <a class="playground-nav-brand" href="${DOCS_URL}">FFT Visualizer</a>
+      <div class="playground-nav-links">
+        ${playgrounds
+          .map(
+            p =>
+              `<a href="${p.href}"${p.id === 'core' ? ' class="active" aria-current="page"' : ''}>${p.label}</a>`
+          )
+          .join('')}
+      </div>
+      <a class="playground-nav-repo" href="${REPO_URL}">GitHub</a>
+    </div>
+  </nav>
   <div class="playground">
     <header>
       <div>

@@ -15,6 +15,7 @@
     "@fft-visualizer/vue": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "nuxt": "^4.6.2"
   }
 }

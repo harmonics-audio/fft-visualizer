@@ -18,9 +18,9 @@ export default defineConfig({
       //
       // The subpath comes first: alias keys match by prefix, so the bare entry
       // alone would rewrite '@fft-visualizer/core/wasm' to 'src/index.ts/wasm'.
-      '@fft-visualizer/core/wasm': resolve(__dirname, '../../packages/core/src/wasm.ts'),
-      '@fft-visualizer/react': resolve(__dirname, '../../packages/react/src/index.ts'),
-      '@fft-visualizer/core': resolve(__dirname, '../../packages/core/src/index.ts')
+      '@fft-visualizer/core/wasm': resolve(import.meta.dirname, '../../packages/core/src/wasm.ts'),
+      '@fft-visualizer/react': resolve(import.meta.dirname, '../../packages/react/src/index.ts'),
+      '@fft-visualizer/core': resolve(import.meta.dirname, '../../packages/core/src/index.ts')
     }
   },
   // No @vitejs/plugin-react: Vite's esbuild already compiles .tsx with the

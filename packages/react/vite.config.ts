@@ -12,7 +12,7 @@ export default defineConfig({
       // `paths` mapping, so declarations resolve core from its built package
       // (bare `@fft-visualizer/core` import) instead of leaking `../../core/src`
       // paths that don't exist in the published tarball.
-      tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
+      tsconfigPath: resolve(import.meta.dirname, 'tsconfig.build.json'),
       insertTypesEntry: true,
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx']
@@ -21,8 +21,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        'fft-visualizer-react': resolve(__dirname, 'src/index.ts'),
-        'fft-wasm': resolve(__dirname, 'src/wasm.ts')
+        'fft-visualizer-react': resolve(import.meta.dirname, 'src/index.ts'),
+        'fft-wasm': resolve(import.meta.dirname, 'src/wasm.ts')
       },
       formats: ['es'] as const,
       // Pinned, because with an entry map Vite derives the stylesheet name from

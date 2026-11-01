@@ -26,7 +26,7 @@ function rootRedirect(): Plugin {
 }
 
 export default defineConfig({
-  root: __dirname,
+  root: import.meta.dirname,
   build: { outDir: 'dist' },
   plugins: [radioDevProxy(), rootRedirect()]
 })

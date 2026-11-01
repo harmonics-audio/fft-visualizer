@@ -22,8 +22,8 @@ export default defineConfig({
     target: 'esnext',
     lib: {
       entry: {
-        'fft-visualizer-core': resolve(__dirname, 'src/index.ts'),
-        'fft-wasm': resolve(__dirname, 'src/wasm.ts'),
+        'fft-visualizer-core': resolve(import.meta.dirname, 'src/index.ts'),
+        'fft-wasm': resolve(import.meta.dirname, 'src/wasm.ts'),
       },
       formats: ['es'] as const
     }

@@ -56,11 +56,12 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # REGISTRY_USERNAME, REGISTRY_PASSWORD and COOLIFY_TOKEN live in this
+    # environment, which only main can use.
+    environment: production
     env:
       IMAGE: registry.apps.vernaillen.dev/demo-fftvisualizer-com
-      # Not a secret: the endpoint is useless without COOLIFY_TOKEN. Keeping it here
-      # means REGISTRY_USERNAME / REGISTRY_PASSWORD / COOLIFY_TOKEN can all live as
-      # harmonics-audio org secrets, with nothing to configure per repo.
+      # Not a secret: the endpoint is useless without COOLIFY_TOKEN.
       COOLIFY_DEPLOY_URL: https://coolify.apps.vernaillen.dev/api/v1/deploy?uuid=uy17autwbm5dgmadwwdtpoj4&force=false
 
     steps:
